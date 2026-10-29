@@ -80,3 +80,8 @@ The Linux fast CI job also generates a deterministic **browser screenshot** at 9
 
 
 **M2.3.1 visual audit:** A CI-created 900×535 browser screenshot is reviewed for panel occlusion, axis collisions and control sizing. When dragging a not-yet-selected node, the dock now opens on *pointer release* to avoid graph-height changes during audio parameter gestures; double-click deletion retains a small first-hit tolerance. Both compiled formats use this same GUI. The browser preview's example curves are synthesized for **visual QA only**, not audio engine output.
+
+
+## Competitive gap audit (2026-10-30)
+
+After a user-provided side-by-side screenshot comparison of ArSonEQ Standalone and FabFilter Pro-Q 3 in VSTHost, the latest engineering priorities are documented in [the Pro-Q 3 gap audit and M2.4 milestone plan](docs/PROQ3_GAP_AUDIT_AND_M24_PLAN_20261030.md). The important uncovered issue is not a superficial gradient: ArSonEQ's analyzer currently averages stereo samples before FFT, losing fully anti-phase stereo signals, and maps nearest FFT bins to a coarse log spectrum without Pro-Q-style speed/tilt/resolution options. The planned fix preserves actual stereo spectral energy, correct measurement units and real-time safety. GUI density and VST3/Standalone quality gates follow this correctness milestone. Do not interpret the published M2.3 engineering builds as equal in sound/features/performance to Pro-Q 3.

@@ -82,3 +82,14 @@ Do not mark M2 DAW-validated based solely on the Windows compilation or mock-DOM
 - [x] Correct overlapping extreme dB ticks and right-side 20kHz label clearance; modestly increase knob target diameter and bounded deck height.
 - [x] Defer first dock opening until pointer release to prevent canvas-height induced drag coordinate jumps; regression smoke passed.
 - [ ] Inspect follow-up visual screenshot and VSTHost Windows behavior after the GUI QA polish build.
+
+
+## Current strategic priority after real 2026-10-30 Pro-Q 3 comparison
+
+**M2.4 (P0, one consolidated milestone):** real stereo-correct analyzer telemetry (avoid L+R anti-phase cancellation), 1024–8192 FFT, calibrated magnitude, power-domain log mapping, bounded per-point time smoothing, 4.5dB/oct display tilt, pre/post/freeze, output sample-peak meter, 60–70px quick edit dock leaving >=390px chart at 900×535, refined original ArSonMix/Pro-EQ visual design. Native engine/host IDs unchanged. **Evidence gates:** frequency/calibration/anti-phase/headless UI tests, VSTHost and ArSonMix captures at 100/150% DPI, both Windows formats, CPU/RAM baseline.
+**M2.5 (P1):** precision UX and workflow: group selection, modifier drag, band solo, context menus, undo/redo, output gain/bypass and trustworthy Spectrum Grab.
+**M3 (P2):** dynamic bell/shelf per-band trigger, auto/manual threshold, envelope, ±dynamic range, native automation and no-click processing.
+**M4 (P2):** complete DSP filter shape/slope audit; *then* original validated analog-matched response, Natural Phase alternative, Linear Phase mode with reported latency.
+**M5 (P3):** reference matching, external/instance spectra, EQ Match, surround and full ecosystem.
+
+Do not declare commercial feature parity until these independent criteria are met. Pro-Q 3's 9 shapes, range and modes must not be represented by renaming the existing 6 RBJ filters. See `docs/PROQ3_GAP_AUDIT_AND_M24_PLAN_20261030.md`.
