@@ -59,7 +59,7 @@ button:hover:not(:disabled){border-color:#91a4b5}
 
 /* Compact editable control island BELOW the graph: no position:absolute.
    Its height is fixed so window resize never pushes controls out of frame. */
-.inspector{position:relative;flex:0 0 143px;min-height:143px;
+.inspector{position:relative;flex:0 0 148px;min-height:148px;
   align-self:center;width:min(570px,calc(100% - 26px));margin:0 auto 7px;padding:0 12px 7px;
   border:1px solid #515663;border-radius:10px;color:#dfe5ec;
   background:linear-gradient(160deg,#34333b 0%,#292b35 30%,#212a35 75%,#182430 100%);
@@ -88,13 +88,13 @@ button:hover:not(:disabled){border-color:#91a4b5}
 .parameter select{padding:0 7px;font-size:10px;letter-spacing:0;cursor:pointer}
 .shape-glyph{display:grid;place-items:center;height:28px;margin:1px auto;color:#88dbd5;
   font-size:24px;line-height:28px}
-.knob-face{display:block;position:relative;width:30px;height:30px;margin:2px auto 0;
+.knob-face{display:block;position:relative;width:34px;height:34px;margin:2px auto 0;
   border:2px solid #586676;border-radius:50%;cursor:ns-resize;touch-action:none;
   background:radial-gradient(circle at 35% 25%,#87929e,#465361 40%,#1b2632 71%,#090f17);
   box-shadow:inset 0 1px 2px #e7edf099,inset 0 -2px 4px #030810,0 2px 2px #000b}
 .knob-face::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid #485464}
 .knob-face::after{content:"";position:absolute;left:50%;top:50%;height:7px;width:3px;border-radius:3px;
-  background:#67e4e8;transform:translate(-50%,-50%) rotate(var(--angle,-140deg)) translateY(-11px);
+  background:#67e4e8;transform:translate(-50%,-50%) rotate(var(--angle,-140deg)) translateY(-13px);
   box-shadow:0 0 5px #57d5dc}
 .knob-face.gain::after{background:var(--gold);box-shadow:0 0 6px #e7ba5c}
 .knob-face.q::after{background:#d1e1ee}
@@ -153,5 +153,5 @@ button:hover:not(:disabled){border-color:#91a4b5}
 .footer-right{color:#b4bac5}.footer-right b{font-size:8px;letter-spacing:1px;color:#72cbda}
 @media(max-width:840px){.brand{min-width:150px}.brand-caption{display:none}
   .preset-center{min-width:120px}.bar-button{padding:0 6px}.footer-center{display:none}}
-@media(max-height:510px){.inspector{flex-basis:133px;min-height:133px;margin-bottom:3px}
+@media(max-height:510px){.inspector{flex-basis:138px;min-height:138px;margin-bottom:3px}
   .inspector-bottom{margin-top:3px;padding-top:3px}.knob-face{height:27px;width:27px}}

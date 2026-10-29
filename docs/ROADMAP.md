@@ -77,3 +77,8 @@ Do not mark M2 DAW-validated based solely on the Windows compilation or mock-DOM
 - [ ] Linux Chromium 900×535 screenshot published and reviewed; verify actual paint at reference size.
 - [ ] Windows VST3 + Standalone Release build both formats; verify no regression.
 - [ ] Inspect actual VSTHost and ArSonMix screenshots at 100% and 150% DPI and measure WebView2 memory/CPU before production merge.
+
+- [x] Real 900x535 headless Chromium screenshot inspected: graph unoccluded and instrument deck visible, identified +12/+9 dB label collision.
+- [x] Correct overlapping extreme dB ticks and right-side 20kHz label clearance; modestly increase knob target diameter and bounded deck height.
+- [x] Defer first dock opening until pointer release to prevent canvas-height induced drag coordinate jumps; regression smoke passed.
+- [ ] Inspect follow-up visual screenshot and VSTHost Windows behavior after the GUI QA polish build.

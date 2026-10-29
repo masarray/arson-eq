@@ -22,7 +22,7 @@ const noteFor=hz=>{if(!isFiniteNumber(hz)||hz<=0)return "—";const midi=Math.ro
 const backend=window.__JUCE__?.backend;
 let bands=Array.from({length:MAX},(_,i)=>({id:i,enabled:false,type:0,route:0,freq:1000,gain:0,q:1,slope:0}));
 let curves={l:[],r:[],cross:[],band:[]},spec={pre:[],post:[]},samplerate=48000;
-let selected=-1,hovered=-1,showSpectrum=true,dragging=null,pendingDrag=null;
+let selected=-1,hovered=-1,showSpectrum=true,dragging=null,pendingDrag=null,lastValidPick=null;
 let w=1,h=1,dpr=1,dirty=false,connected=false,hasSpectrum=false;
 const emit=payload=>{if(backend?.emitEvent)backend.emitEvent("eq-command",payload);};
 const changed=()=>{if(!dirty){dirty=true;requestAnimationFrame(()=>{dirty=false;draw();});}};
@@ -204,7 +204,7 @@ const draw=()=>{
     ctx.lineWidth=major?.9:.5;ctx.strokeStyle=major?"#403a46":"#302d36";ctx.stroke();
     if([30,50,100,200,500,1000,2000,5000,10000,20000].includes(hz)){
       ctx.textAlign="center";ctx.fillStyle="#98919e";
-      ctx.fillText(formatHz(hz),clamp(x,18,pw-18),h-8);
+      ctx.fillText(formatHz(hz),clamp(x,18,pw-35),h-8);
     }
   }
   const tickStep=rangeDb<=15?3:6;
@@ -215,7 +215,7 @@ const draw=()=>{
     ctx.strokeStyle=db===0?"#987b4b":"#37313b";ctx.stroke();
     ctx.textAlign="right";ctx.font="10px Consolas,monospace";
     ctx.fillStyle=db===0?"#f0c86d":"#a9a0a8";
-    ctx.fillText((db>0?"+":"")+db,pw-6,clamp(y-6,28,h-22));
+    ctx.fillText((db>0?"+":"")+db,pw-6,clamp(y+3,13,h-17));
   }
   // Independent spectrum scale in a discrete right-side rail.
   ctx.beginPath();ctx.moveTo(pw+.5,0);ctx.lineTo(pw+.5,h);
@@ -306,9 +306,11 @@ canvas.addEventListener("pointerdown",e=>{
   if(e.button!==0)return;
   const p=mapLocal(e);const id=bandHit(p.x,p.y);
   if(id<0){select(-1);return;}
-  select(id);
+  lastValidPick={id,x:p.x,y:p.y,at:Date.now()};
+  // Opening the bottom dock resizes the graph; defer selection until
+  // release so its coordinate system cannot jump DURING the pointer drag.
   const b=bands[id];
-  dragging={id,pointer:e.pointerId,freq:b.freq,gain:b.gain};
+  dragging={id,pointer:e.pointerId,freq:b.freq,gain:b.gain,selectOnUp:selected!==id};
   canvas.setPointerCapture(e.pointerId);
   emit({kind:"begin",id,fields:["freq",...(!isCut(b.type)&&b.type!==5?["gain"]:[])]});
 });
@@ -352,13 +354,21 @@ const finishDrag=e=>{
   const d=dragging;
   dragging=null;
   emit({kind:"end",id:d.id,fields:["freq",...(!isCut(bands[d.id].type)&&bands[d.id].type!==5?["gain"]:[])]});
+  if(d.selectOnUp)select(d.id);
   changed();
 };
 canvas.addEventListener("pointerup",finishDrag);
 canvas.addEventListener("pointercancel",finishDrag);
 canvas.addEventListener("pointerleave",()=>{hovered=-1;$("graphTooltip").hidden=true;changed();});
 canvas.addEventListener("dblclick",e=>{
-  const p=mapLocal(e),id=bandHit(p.x,p.y);
+  const p=mapLocal(e);
+  let id=bandHit(p.x,p.y);
+  // 2nd click can land off-node after the first click reveals the dock.
+  // Preserve a recent first hit only for the SAME small pointer location.
+  if(id<0 && lastValidPick && Date.now()-lastValidPick.at<550 &&
+     Math.hypot(p.x-lastValidPick.x,p.y-lastValidPick.y)<20)
+    id=lastValidPick.id;
+  lastValidPick=null;
   if(id>=0){select(id);removeSelected();}
   else addBand(p.x,p.y);
 });

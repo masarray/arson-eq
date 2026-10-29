@@ -61,12 +61,13 @@ assert.ok(element("bandCount").textContent.includes("1 / 24"),"host band snapsho
 handlers["eq-spectrum"]({pre:Array(224).fill(-80),post:Array(224).fill(-75)});
 element("eqCanvas").dispatch("pointerdown",{button:0,pointerId:1,clientX:431,clientY:100});
 assert.ok(find("begin").length,"host gesture starts on drag");
-assert.equal(element("inspector").hidden,false,"inspector appears only when a band is selected");
+assert.equal(element("inspector").hidden,true,"dock stays closed while first pointer drag is active");
 assert.ok(!element("inspector").style.left,"inspector must never follow/cover graph nodes");
-assert.ok(element("inspector").hidden===false,"selected band creates non-obscuring dock");
+assert.ok(element("inspector").hidden===true,"selection is deferred until pointer release");
 element("eqCanvas").dispatch("pointermove",{pointerId:1,clientX:500,clientY:170});
 element("eqCanvas").dispatch("pointerup",{pointerId:1});
 assert.ok(find("end").length,"host gesture ends after drag");
+assert.equal(element("inspector").hidden,false,"selection opens non-obscuring dock AFTER drag completes");
 assert.ok(find("edit").some(x=>x.field==="freq"),"drag automates frequency");
 element("qKnob").dispatch("pointerdown",{button:0,pointerId:25,clientY:120,preventDefault(){}});
 element("qKnob").dispatch("pointermove",{pointerId:25,clientY:98});
@@ -97,7 +98,7 @@ assert.ok(inspectorPosition>graphClose && graphClose>markup.indexOf('id="quickHe
   "band controls are after graph closing tag, never inside interactive plot");
 assert.ok(style.includes(".workspace{flex:1;min-height:0;display:flex;flex-direction:column"),
   "dock stacks under graph without occlusion");
-assert.ok(style.includes("flex:0 0 143px"),"dock has bounded, predictable layout space");
+assert.ok(style.includes("flex:0 0 148px"),"dock has bounded, predictable layout space");
 assert.ok(!style.includes("filter:brightness"),"no global hover GPU brightness filters");
 handlers["eq-state"]({bands,rate:48000,curve:{l:curve,r:curve,cross:curve,band:curve}});
 // Check host-originated gain beyond 12 dB no longer silently clips nodes.
