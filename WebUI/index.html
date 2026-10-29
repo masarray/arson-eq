@@ -7,7 +7,7 @@
 <header class="top">
   <div class="brand"><span class="brand-glyph">A<span>◢</span></span><div class="brand-name">ArSon<span>EQ</span></div><span class="brand-separator"></span><span class="brand-caption">PARAMETRIC EQ</span></div>
   <div class="preset-center"><span class="preset-arrows">‹</span><span id="stateInfo">24 BANDS · ZERO LATENCY</span><span class="preset-arrows">›</span></div>
-  <div class="top-actions"><button id="bandsBtn" class="bar-button" type="button" title="Active band list">BANDS <b id="bandCount">0 / 24</b></button><button id="viewBtn" class="bar-button active" type="button" title="Toggle live spectrum">ANALYZER <span id="spectrumStatus">ON</span></button><button id="analyzerMenuBtn" class="bar-button" type="button" title="FFT resolution, smoothing, display tilt and freeze">FFT ⚙</button><button id="helpBtn" class="help-button" type="button" title="Mouse and keyboard controls">?</button></div>
+  <div class="top-actions"><button id="undoBtn" class="bar-button history-button" type="button" title="Undo EQ edit (Ctrl+Z)" disabled>↶</button><button id="redoBtn" class="bar-button history-button" type="button" title="Redo EQ edit (Ctrl+Y)" disabled>↷</button><button id="bandsBtn" class="bar-button" type="button" title="Active band list">BANDS <b id="bandCount">0 / 24</b></button><button id="viewBtn" class="bar-button active" type="button" title="Toggle live spectrum">ANALYZER <span id="spectrumStatus">ON</span></button><button id="analyzerMenuBtn" class="bar-button" type="button" title="FFT resolution, smoothing, display tilt and freeze">FFT ⚙</button><button id="helpBtn" class="help-button" type="button" title="Mouse and keyboard controls">?</button></div>
 </header>
 <main class="workspace">
   <div class="graph-wrap" id="graphWrap">
@@ -34,9 +34,15 @@
       </div>
       <small>FFT/tilt changes visualization only · audio latency stays zero</small>
     </div>
-    <div id="quickHelp" class="quick-help" hidden><b>EQ CONTROLS</b><p>Double-click empty graph: add filter</p><p>Double-click node / Delete: remove</p><p>Drag node: Hz + dB</p><p>Wheel on node: Q / cut slope</p><p>Click node: edit filter</p></div>
-  </div>
-  <!-- Context dock has its own layout space: graph, nodes and labels never sit underneath it. -->
+    <div id="quickHelp" class="quick-help" hidden><b>EQ CONTROLS</b><p>Double-click: add / remove band</p><p>Ctrl + click: multiselect bands</p><p>Drag a selected group: move together</p><p>Shift + drag: precision edit</p><p>Ctrl+Z / Ctrl+Y: undo / redo</p><p>Wheel: Q / cut slope</p></div>
+    <div id="bandContextMenu" class="band-context" hidden role="menu" aria-label="EQ band context menu">
+      <button type="button" data-eq-menu="edit">EDIT BAND</button>
+      <button type="button" data-eq-menu="toggle">BYPASS / ENABLE</button>
+      <button type="button" data-eq-menu="remove">REMOVE SELECTED</button>
+      <button type="button" data-eq-menu="add">ADD BAND HERE</button>
+      <button type="button" data-eq-menu="all">SELECT ALL BANDS</button>
+    </div>
+    <!-- Floating EQ control card occupies no graph layout height. -->
     <div class="inspector" id="inspector" hidden role="region" aria-label="Selected filter controls">
       <div class="inspector-top"><div class="identity"><i id="bandDot"></i><span id="bandTitle">BAND 01</span><span id="activeLabel" class="channel-badge">BAND</span></div>
         <div class="inspector-actions"><button id="enableBtn" type="button" title="Enable / bypass filter">ON</button><button id="advancedBtn" type="button" title="Expand advanced band controls" aria-expanded="false">MORE ▾</button><button id="removeBtn" type="button" title="Delete band">×</button><button id="closeInspector" type="button" title="Close inspector">▾</button></div>
@@ -56,6 +62,7 @@
         </div>
       </div>
     </div>
+  </div>
 </main>
 <footer class="bottom-bar">
   <div class="footer-left"><span class="signal-flag"><i></i> PARAMETRIC EQ</span><span class="footer-divider"></span><span id="bridgeStatus">CONNECTING</span></div>

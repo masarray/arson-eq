@@ -190,3 +190,27 @@ button:hover:not(:disabled){border-color:#91a4b5}
 .analyzer-menu small{font-size:9px;color:#8b9eab}
 @media(max-height:510px){.inspector{flex-basis:70px;min-height:70px}
   .inspector.expanded{flex-basis:140px;min-height:140px}}
+
+/* M2.5 composited Band Inspector: zero flex reflow, static EQ coordinates. */
+.workspace{display:flex;flex-direction:column;position:relative}
+.graph-wrap{flex:1 1 auto;min-height:0;isolation:isolate}
+.inspector{position:absolute;z-index:7;top:auto;bottom:13px;left:13px;
+ flex:none;min-height:0;height:70px;width:min(630px,calc(100% - 26px));
+ margin:0;padding:0 11px 4px;align-self:auto;max-width:none;
+ box-shadow:inset 0 1px #777580,0 1px 0 #121720,0 9px 25px #000b;
+ transform:translateZ(0);will-change:auto}
+.inspector.expanded{flex:none;min-height:0;height:151px;padding-bottom:7px;margin:0}
+.history-button{min-width:31px!important;font-size:17px!important;padding:0 4px!important}
+.history-button:disabled{opacity:.42}
+.inspector .identity{letter-spacing:.4px}
+.inspector .parameter-row{gap:8px}
+@media(max-height:510px){.inspector{height:70px}.inspector.expanded{height:140px}}
+.band-context{position:absolute;z-index:12;width:166px;padding:5px;
+ border-radius:5px;border:1px solid #6b7683;
+ background:linear-gradient(#303843,#192633);box-shadow:0 10px 28px #000b}
+.band-context button{display:block;width:100%;min-height:28px;border:0;
+ border-bottom:1px solid #3c4b584d;background:transparent;
+ padding:5px 8px;text-align:left;font-size:10px;color:#d9e6ec;
+ font-weight:650;letter-spacing:.25px}
+.band-context button:last-child{border-bottom:0}
+.band-context button:hover{background:#3c6473;color:#fff}

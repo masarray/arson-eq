@@ -23,6 +23,35 @@ const backend=window.__JUCE__?.backend;
 let bands=Array.from({length:MAX},(_,i)=>({id:i,enabled:false,type:0,route:0,freq:1000,gain:0,q:1,slope:0}));
 let curves={l:[],r:[],cross:[],band:[]},spec={pre:[],post:[],range:90,peakL:0,peakR:0,preVisible:true,postVisible:true},samplerate=48000;
 let selected=-1,hovered=-1,showSpectrum=true,dragging=null,pendingDrag=null,lastValidPick=null;
+const selection=new Set(),history=[],redoHistory=[];
+const FIELDS=["enabled","type","route","freq","gain","q","slope"];
+let editSnapshot=null,historyReplay=false;
+const snapshot=()=>bands.map(b=>FIELDS.map(f=>b[f]));
+const refreshUndo=()=>{$("undoBtn").disabled=!history.length;$("redoBtn").disabled=!redoHistory.length;};
+const beginEdit=()=>{if(!editSnapshot&&!historyReplay)editSnapshot=snapshot();};
+const finishEdit=()=>{
+  if(!editSnapshot)return;
+  const after=snapshot(),before=editSnapshot;editSnapshot=null;
+  if(after.some((v,i)=>v.some((x,j)=>x!==before[i][j]))){
+    history.push({before,after});if(history.length>64)history.shift();
+    redoHistory.length=0;
+  }
+  refreshUndo();
+};
+const undoRedo=undo=>{
+  if(dragging||editSnapshot)return;
+  const src=undo?history:redoHistory,dst=undo?redoHistory:history;
+  const entry=src.pop();if(!entry)return;
+  const values=undo?entry.before:entry.after,changes=[];
+  historyReplay=true;
+  values.forEach((row,id)=>row.forEach((value,k)=>{
+    const field=FIELDS[k];
+    if(bands[id][field]!==value){bands[id][field]=value;changes.push({id,field,value});}
+  }));
+  historyReplay=false;
+  if(changes.length)emit({kind:"bulkEdit",entries:changes,gesture:true});
+  dst.push(entry);refreshUndo();renderInspector();renderRail();placeInspector();changed();
+};
 let w=1,h=1,dpr=1,dirty=false,connected=false,hasSpectrum=false;
 const emit=payload=>{if(backend?.emitEvent)backend.emitEvent("eq-command",payload);};
 const changed=()=>{if(!dirty){dirty=true;requestAnimationFrame(()=>{dirty=false;draw();});}};
@@ -34,29 +63,56 @@ const updateBandLocal=(id,field,value)=>{
   renderInspector();changed();
 };
 const setParam=(id,field,value,gesture=true)=>{
-  if(!Number.isFinite(value)||id<0||id>=MAX)return;
+  if(!Number.isFinite(value)||id<0||id>=MAX||!FIELDS.includes(field))return;
+  if(bands[id][field]===value)return;
+  if(gesture)beginEdit();
   updateBandLocal(id,field,value);
   emit({kind:"edit",id,field,value,gesture});
+  if(gesture)finishEdit();
 };
-const select=i=>{
-  selected=(i>=0&&i<MAX)?i:-1;
-  $("bandList").hidden=true;
-  $("quickHelp").hidden=true;
+const placeInspector=()=>{
+  const card=$("inspector");
+  if(card.hidden||selected<0)return;
+  const height=card.classList.contains("expanded")?Math.min(151,h-40):70;
+  const width=Math.min(630,Math.max(250,plotWidth(w)-28));
+  const b=bands[selected],x=hzX(b.freq,w),y=dbY(isCut(b.type)?0:b.gain,h);
+  let left=clamp(x-width*.5,12,Math.max(12,plotWidth(w)-width-12));
+  let top=h-height-13;
+  if(y>=top-20){
+    if(y-height-27>=35)top=y-height-27;
+    else if(y+height+27<h-13)top=y+27;
+    else left=x<plotWidth(w)*.5?Math.max(12,plotWidth(w)-width-12):12;
+  }
+  card.style.left=Math.round(left)+"px";
+  card.style.top=Math.round(clamp(top,32,Math.max(32,h-height-8)))+"px";
+  card.style.bottom="auto";
+};
+const select=(i,additive=false)=>{
+  const id=(i>=0&&i<MAX)?i:-1;
+  if(additive&&id>=0){
+    if(selection.has(id))selection.delete(id);else selection.add(id);
+    selected=selection.size?[...selection].at(-1):-1;
+  }else{selected=id;selection.clear();if(id>=0)selection.add(id);}
+  $("bandList").hidden=true;$("quickHelp").hidden=true;
   emit({kind:"select",id:selected});
-  renderInspector();renderRail();changed();
+  renderInspector();renderRail();placeInspector();changed();
 };
 const addBand=(x,y)=>{
   const idx=bands.findIndex(b=>!b.enabled);
   if(idx<0)return;
+  beginEdit();
   const freq=xHz(x,w),gain=yDb(y,h);
   bands[idx]={...bands[idx],enabled:true,type:0,route:0,freq,gain,q:1,slope:0};
   emit({kind:"add",id:idx,freq,gain});
-  select(idx);
+  select(idx);finishEdit();
 };
 const removeSelected=()=>{
   if(selected<0)return;
-  setParam(selected,"enabled",0);
-  select(-1);
+  beginEdit();
+  const entries=[...selection].filter(id=>bands[id]?.enabled).map(id=>({id,field:"enabled",value:0}));
+  for(const e of entries)bands[e.id].enabled=false;
+  if(entries.length)emit({kind:"bulkEdit",entries,gesture:true});
+  select(-1);finishEdit();
 };
 const bandHit=(x,y)=>{
   let choice=-1,best=16*16;
@@ -78,8 +134,8 @@ const renderRail=()=>{
     const chip=document.createElement("button");
     chip.type="button";chip.className="band-chip on"+(selected===i?" selected":"");
     chip.style.setProperty("--chip",col(i));
-    chip.textContent=String(i+1).padStart(2,"0")+" · "+formatHz(bands[i].freq);
-    chip.onclick=()=>select(i);rail.appendChild(chip);
+    chip.textContent=(selection.has(i)?"◆ ":"")+String(i+1).padStart(2,"0")+" · "+formatHz(bands[i].freq);
+    chip.onclick=e=>select(i,!!(e.ctrlKey||e.metaKey));rail.appendChild(chip);
   }
 };
 const renderInspector=()=>{
@@ -89,7 +145,8 @@ const renderInspector=()=>{
   $("bandInspector").hidden=!b;
   if(!b)return;
   $("activeLabel").textContent=["STEREO","LEFT","RIGHT","MID","SIDE"][b.route]||"STEREO";
-  $("bandTitle").textContent="BAND "+String(selected+1).padStart(2,"0");
+  $("bandTitle").textContent=(selection.size>1?selection.size+" BANDS · ":"BAND ")+
+    String(selected+1).padStart(2,"0");
   $("bandDot").style.background=col(selected);
   $("enableBtn").textContent=b.enabled?"● ON":"○ OFF";
   $("enableBtn").classList.toggle("off",!b.enabled);
@@ -113,7 +170,7 @@ const renderInspector=()=>{
   $("qKnob").style.setProperty("--angle",knobAngle(b.q,.1,24,true));
   $("routeGroup").querySelectorAll("button").forEach(btn=>
     btn.classList.toggle("active",Number(btn.dataset.route)===b.route));
-  // Dock is a flex sibling of the graph, never an absolute canvas overlay.
+  // Inspector is a fixed-geometry compositor overlay, not a flex child.
 };
 const mapLocal=e=>{const r=canvas.getBoundingClientRect();return{x:clamp(e.clientX-r.left,0,plotWidth(r.width)),y:clamp(e.clientY-r.top,0,r.height)};};
 // Canvas renderer: only native DSP response data are graphed. No JS biquads.
@@ -268,7 +325,7 @@ const draw=()=>{
   for(let i=0;i<MAX;++i){
     const b=bands[i];if(!b.enabled)continue;
     const x=hzX(b.freq,w),y=dbY(isCut(b.type)?0:b.gain,h);
-    const focus=selected===i||hovered===i;
+    const focus=selection.has(i)||hovered===i;
     ctx.save();
     ctx.shadowBlur=focus?9:3;ctx.shadowColor=col(i);
     ctx.beginPath();ctx.arc(x,y,focus?6.2:5.4,0,Math.PI*2);
@@ -291,7 +348,7 @@ const resize=()=>{
   dpr=Math.min(2,window.devicePixelRatio||1);
   const cw=Math.max(1,Math.round(w*dpr)),ch=Math.max(1,Math.round(h*dpr));
   if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
-  if(oldW!==w||oldH!==h)changed();
+  if(oldW!==w||oldH!==h){placeInspector();changed();}
 };
 new ResizeObserver(resize).observe(wrap);
 window.addEventListener("resize",resize);
@@ -303,7 +360,9 @@ function applyHostState(data){
     freq:clamp(Number(b.freq)||1000,20,20000),gain:clamp(Number(b.gain)||0,-24,24),
     q:clamp(Number(b.q)||1,.1,24),slope:clamp(b.slope|0,0,3)
   }));
-  if(dragging){ const b=bands[dragging.id];if(b){b.freq=dragging.freq;b.gain=dragging.gain;} }
+  if(dragging)for(const [id,v] of dragging.values){
+    if(bands[id]){bands[id].freq=v.freq;bands[id].gain=v.gain;}
+  }
   if(data.curve)curves=data.curve;
   // Match Pro-EQ style 12 dB default range, but expand if actual host gain
   // exceeds 12 dB so handles/response are never silently clipped.
@@ -312,7 +371,7 @@ function applyHostState(data){
   rangeDb=clamp(Math.ceil((peak+1)/3)*3,12,24);
   $("stateInfo").textContent="24 BANDS  /  "+(samplerate/1000).toFixed(1)+" kHz  /  ZERO LATENCY";
   $("bridgeStatus").textContent="NATIVE DSP CONNECTED";
-  renderInspector();renderRail();changed();
+  renderInspector();renderRail();if(!dragging)placeInspector();changed();
 }
 function applySpectrum(data){
   if(!data||!Array.isArray(data.pre)||!Array.isArray(data.post))return;
@@ -326,60 +385,108 @@ if(backend?.addEventListener){
   $("bridgeStatus").textContent="WEB PREVIEW MODE — NO AUDIO ENGINE";
   curves.l=Array(256).fill(0);curves.r=Array(256).fill(0);
 }
+// Native-style right click: actions operate on real host parameters.
+const hideContext=()=>{$("bandContextMenu").hidden=true;};
+canvas.addEventListener("contextmenu",e=>{
+  e.preventDefault();
+  const p=mapLocal(e),id=bandHit(p.x,p.y);
+  if(id>=0&&!selection.has(id))select(id);
+  const menu=$("bandContextMenu");
+  const rect={width:166,height:150};
+  menu.style.left=clamp(p.x,8,Math.max(8,plotWidth(w)-rect.width-8))+"px";
+  menu.style.top=clamp(p.y,28,Math.max(28,h-rect.height-8))+"px";
+  menu.dataset.x=String(p.x);menu.dataset.y=String(p.y);
+  menu.querySelectorAll("button").forEach(btn=>{
+    if(btn.dataset.eqMenu==="add")btn.hidden=id>=0;
+    else if(["edit","toggle","remove"].includes(btn.dataset.eqMenu))btn.hidden=id<0;
+  });
+  menu.hidden=false;
+});
+$("bandContextMenu").addEventListener("click",e=>{
+  const action=e.target.closest("[data-eq-menu]")?.dataset.eqMenu;
+  if(!action)return;
+  const menu=$("bandContextMenu");
+  if(action==="edit"&&selected>=0){renderInspector();placeInspector();}
+  else if(action==="toggle"&&selected>=0){
+    beginEdit();
+    const entries=[...selection].map(id=>({id,field:"enabled",value:bands[id].enabled?0:1}));
+    for(const change of entries)bands[change.id].enabled=!!change.value;
+    emit({kind:"bulkEdit",entries,gesture:true});
+    finishEdit();renderInspector();changed();
+  }else if(action==="remove")removeSelected();
+  else if(action==="add")addBand(Number(menu.dataset.x),Number(menu.dataset.y));
+  else if(action==="all"){
+    selection.clear();for(const id of active())selection.add(id);
+    selected=selection.size?[...selection].at(-1):-1;
+    emit({kind:"select",id:selected});renderInspector();renderRail();placeInspector();changed();
+  }
+  hideContext();
+});
 canvas.addEventListener("pointerdown",e=>{
+  hideContext();
   if(e.button!==0)return;
-  const p=mapLocal(e);const id=bandHit(p.x,p.y);
+  const p=mapLocal(e),id=bandHit(p.x,p.y);
   if(id<0){select(-1);return;}
   lastValidPick={id,x:p.x,y:p.y,at:Date.now()};
-  // Opening the bottom dock resizes the graph; defer selection until
-  // release so its coordinate system cannot jump DURING the pointer drag.
-  const b=bands[id];
-  dragging={id,pointer:e.pointerId,freq:b.freq,gain:b.gain,selectOnUp:selected!==id};
+  if(e.ctrlKey||e.metaKey){select(id,true);return;}
+  if(!selection.has(id))select(id);
+  else if(selected!==id){selected=id;emit({kind:"select",id});renderInspector();placeInspector();}
+  beginEdit();
+  const ids=selection.has(id)?[...selection]:[id];
+  const start=new Map(ids.map(i=>[i,{freq:bands[i].freq,gain:bands[i].gain}]));
+  const fields=ids.map(i=>({id:i,fields:["freq",...(!isCut(bands[i].type)&&bands[i].type!==5?["gain"]:[])]}));
+  dragging={id,pointer:e.pointerId,x:p.x,y:p.y,start,values:new Map(start),
+    fields,group:ids.length>1,precision:!!e.shiftKey};
   canvas.setPointerCapture(e.pointerId);
-  emit({kind:"begin",id,fields:["freq",...(!isCut(b.type)&&b.type!==5?["gain"]:[])]});
+  if(ids.length===1)emit({kind:"begin",id,fields:fields[0].fields});
+  else emit({kind:"gestureMany",begin:true,items:fields});
 });
 canvas.addEventListener("pointermove",e=>{
-  const p=mapLocal(e); const f=xHz(p.x,w);
-  $("hoverReadout").textContent=formatHz(f)+" Hz  •  "+noteFor(f)+"  •  "+number(yDb(p.y,h))+" dB";
-  if(dragging && dragging.pointer===e.pointerId){
-    dragging.freq=f;
-    if(!isCut(bands[dragging.id].type)&&bands[dragging.id].type!==5) dragging.gain=yDb(p.y,h);
-    pendingDrag={id:dragging.id,freq:dragging.freq,gain:dragging.gain};
-    // At most one native command bundle per animation frame.
-    if(!canvas.dataset.dragRaf){
-      canvas.dataset.dragRaf="1";
-      requestAnimationFrame(flushDrag);
+  const p=mapLocal(e);
+  $("hoverReadout").textContent=formatHz(xHz(p.x,w))+" Hz  •  "+noteFor(xHz(p.x,w))+"  •  "+number(yDb(p.y,h))+" dB";
+  if(dragging&&dragging.pointer===e.pointerId){
+    const d=dragging,precision=e.shiftKey||d.precision?0.17:1;
+    const dx=(p.x-d.x)*precision,dy=(p.y-d.y)*precision;
+    const ratio=Math.exp(dx/plotWidth(w)*Math.log(F1/F0)),delta=-dy/(h*.5)*rangeDb;
+    const entries=[];
+    for(const [id,v] of d.start){
+      const freq=clamp(v.freq*ratio,F0,F1);
+      const gain=isCut(bands[id].type)||bands[id].type===5?v.gain:clamp(v.gain+delta,-24,24);
+      d.values.set(id,{freq,gain});
+      bands[id].freq=freq;bands[id].gain=gain;
+      entries.push({id,field:"freq",value:freq});
+      if(!isCut(bands[id].type)&&bands[id].type!==5)entries.push({id,field:"gain",value:gain});
     }
-    changed();return;
+    pendingDrag=entries;
+    if(!canvas.dataset.dragRaf){canvas.dataset.dragRaf="1";requestAnimationFrame(flushDrag);}
+    renderInspector();changed();return;
   }
   const hit=bandHit(p.x,p.y);
   if(hit!==hovered){hovered=hit;changed();}
   const tooltip=$("graphTooltip");
   if(hit>=0){
-    const b=bands[hit];
-    tooltip.textContent="B"+(hit+1)+"  "+formatHz(b.freq)+" Hz  "+number(b.gain)+" dB  ·  Q "+number(b.q);
+    const band=bands[hit];
+    tooltip.textContent="B"+(hit+1)+"  "+formatHz(band.freq)+" Hz  "+number(band.gain)+" dB  · Q "+number(band.q);
     tooltip.style.left=clamp(p.x+14,10,w-190)+"px";
-    tooltip.style.top=clamp(p.y-50,8,h-45)+"px";
-    tooltip.hidden=false;
+    tooltip.style.top=clamp(p.y-50,8,h-45)+"px";tooltip.hidden=false;
   }else tooltip.hidden=true;
 });
 const flushDrag=()=>{
   canvas.dataset.dragRaf="";
   if(!pendingDrag)return;
-  const v=pendingDrag;pendingDrag=null;
-  setParam(v.id,"freq",v.freq,false);
-  if(!isCut(bands[v.id].type)&&bands[v.id].type!==5)setParam(v.id,"gain",v.gain,false);
+  const entries=pendingDrag;pendingDrag=null;
+  if(dragging&&!dragging.group){
+    for(const e of entries)emit({kind:"edit",...e,gesture:false});
+  }else emit({kind:"bulkEdit",entries,gesture:false});
   renderRail();
 };
 const finishDrag=e=>{
   if(!dragging||dragging.pointer!==e.pointerId)return;
-  // Always commit the final pointer location before closing the host gesture.
   flushDrag();
-  const d=dragging;
-  dragging=null;
-  emit({kind:"end",id:d.id,fields:["freq",...(!isCut(bands[d.id].type)&&bands[d.id].type!==5?["gain"]:[])]});
-  if(d.selectOnUp)select(d.id);
-  changed();
+  const d=dragging;dragging=null;
+  if(d.group)emit({kind:"gestureMany",begin:false,items:d.fields});
+  else emit({kind:"end",id:d.id,fields:d.fields[0].fields});
+  finishEdit();placeInspector();changed();
 };
 canvas.addEventListener("pointerup",finishDrag);
 canvas.addEventListener("pointercancel",finishDrag);
@@ -387,8 +494,7 @@ canvas.addEventListener("pointerleave",()=>{hovered=-1;$("graphTooltip").hidden=
 canvas.addEventListener("dblclick",e=>{
   const p=mapLocal(e);
   let id=bandHit(p.x,p.y);
-  // 2nd click can land off-node after the first click reveals the dock.
-  // Preserve a recent first hit only for the SAME small pointer location.
+  // Coordinates remain stable; narrow fallback for double click hit testing.
   if(id<0 && lastValidPick && Date.now()-lastValidPick.at<550 &&
      Math.hypot(p.x-lastValidPick.x,p.y-lastValidPick.y)<20)
     id=lastValidPick.id;
@@ -403,7 +509,7 @@ canvas.addEventListener("wheel",e=>{
   const b=bands[id],direction=e.deltaY<0?1:-1;
   if(isCut(b.type))setParam(id,"slope",clamp(b.slope+direction,0,3));
   else setParam(id,"q",clamp(b.q*Math.pow(1.14,direction),.1,24));
-  select(id);
+  if(!selection.has(id))select(id);
 },{passive:false});
 const ctrl=(id,field,converter=Number)=>{
   $(id).addEventListener("change",()=>{
@@ -438,7 +544,10 @@ $("advancedBtn").onclick=()=>{
   const expanded=$("inspector").classList.toggle("expanded");
   $("advancedBtn").textContent=expanded?"LESS ▴":"MORE ▾";
   $("advancedBtn").setAttribute("aria-expanded",String(expanded));
+  placeInspector();
 };
+$("undoBtn").onclick=()=>undoRedo(true);
+$("redoBtn").onclick=()=>undoRedo(false);
 $("viewBtn").onclick=()=>{
   showSpectrum=!showSpectrum;
   $("spectrumStatus").textContent=showSpectrum?"ON":"OFF";
@@ -462,6 +571,7 @@ const attachKnob=(id,field)=>{
   knob.addEventListener("pointerdown",e=>{
     if(selected<0||e.button!==0||(field==="gain"&&$("gainInput").disabled))return;
     e.preventDefault();
+    beginEdit();
     gesture={pointer:e.pointerId,id:selected,startY:e.clientY,start:bands[selected][field]};
     knob.setPointerCapture(e.pointerId);
     emit({kind:"begin",id:selected,fields:[field]});
@@ -476,7 +586,7 @@ const attachKnob=(id,field)=>{
   const end=e=>{
     if(!gesture||gesture.pointer!==e.pointerId)return;
     emit({kind:"end",id:gesture.id,fields:[field]});
-    gesture=null;
+    gesture=null;finishEdit();
   };
   knob.addEventListener("pointerup",end);
   knob.addEventListener("pointercancel",end);
@@ -486,10 +596,16 @@ attachKnob("freqKnob","freq");
 attachKnob("gainKnob","gain");
 attachKnob("qKnob","q");
 window.addEventListener("keydown",e=>{
-  if(e.target.matches("input,select"))return;
-  if((e.key==="Delete"||e.key==="Backspace")&&selected>=0){
-    e.preventDefault();removeSelected();
+  if(e.target?.matches?.("input,select,textarea"))return;
+  const ctrl=e.ctrlKey||e.metaKey,key=e.key.toLowerCase();
+  if(ctrl&&(key==="z"||key==="y")){e.preventDefault();undoRedo(key==="z"&&!e.shiftKey);return;}
+  if(ctrl&&key==="a"){
+    e.preventDefault();selection.clear();for(const id of active())selection.add(id);
+    selected=selection.size?[...selection].at(-1):-1;
+    emit({kind:"select",id:selected});renderInspector();renderRail();placeInspector();changed();return;
   }
+  if(key==="escape"){hideContext();select(-1);return;}
+  if((key==="delete"||key==="backspace")&&selected>=0){e.preventDefault();removeSelected();}
 });
-resize();renderInspector();renderRail();changed();
+resize();renderInspector();renderRail();refreshUndo();changed();
 })();

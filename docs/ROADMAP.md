@@ -108,3 +108,17 @@ Do not declare commercial feature parity until these independent criteria are me
 
 - [x] Repair native JUCE fallback's stereo analyzer field integration: four FFT passes, power combination after FFT.
 - [x] Precompute Hann window/coherent normalization once when selecting FFT size; remove repetitive per-channel trig in GUI update loop.
+
+
+### M2.5 integrated implementation candidate — screenshot-driven UX regression fix
+- [x] Fix selection/MORE graph coordinate-jump root cause by moving band inspector into `graphWrap` as an absolute floating composite layer.
+- [x] Place card according to selected node and available vertical space without moving/resizing canvas.
+- [x] Ctrl/Meta multiselect (or Ctrl+A) and proportional-frequency / additive-gain group drag.
+- [x] Shift precision drag (~17% pointer multiplier).
+- [x] Bounded grouped `gestureMany` + `bulkEdit` commands through the native JUCE host-parameter bridge.
+- [x] Local 64-history undo/redo across single/group parameter edits with Ctrl+Z/Y toolbar buttons.
+- [x] Original lightweight context menu: edit/bypass/remove/add/select all.
+- [x] UI fake-host regression for card geometry, group gestures, history, right-click, analyzer.
+- [ ] Confirm CI Linux Chromium visual and Windows dual target VST3+Standalone build from same commit.
+- [ ] Real Windows VSTHost/ArSonMix: graph height invariant on click/release, drag at 20Hz/20kHz extremes, MORE at 100%/150% DPI, group gestures, undo/redo; profile WebView2 CPU.
+- [ ] Later: band solo audition, multi-band numeric editing, fully host-integrated undo semantics, spectrum grab and output auto-gain.

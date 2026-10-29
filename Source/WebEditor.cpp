@@ -179,6 +179,32 @@ void ArSonEQWebEditor::onCommand(const juce::var& message) {
         else if(field=="post")showPost_=static_cast<bool>(value);
         return;
     }
+    // Bounded message-thread transactions: one IPC command for an entire
+    // multi-band frame, never any work on the real-time audio callback.
+    if(kind=="bulkEdit") {
+        const auto values=message.getProperty("entries",{});
+        if(!values.isArray()||values.getArray()->size()>168)return;
+        const bool useGesture=static_cast<bool>(message.getProperty("gesture",true));
+        for(const auto& item:*values.getArray()) {
+            if(!item.isObject())continue;
+            const int slot=static_cast<int>(item.getProperty("id",-1));
+            const auto field=item.getProperty("field",{}).toString();
+            const float value=static_cast<float>(static_cast<double>(item.getProperty("value",0.)));
+            edit(slot,field,value,useGesture);
+        }
+        return;
+    }
+    if(kind=="gestureMany") {
+        const auto values=message.getProperty("items",{});
+        if(!values.isArray()||values.getArray()->size()>arson::eq::kMaxBands)return;
+        const bool begin=static_cast<bool>(message.getProperty("begin",false));
+        for(const auto& item:*values.getArray()) {
+            if(!item.isObject())continue;
+            const int slot=static_cast<int>(item.getProperty("id",-1));
+            gesture(slot,item.getProperty("fields",{}),begin);
+        }
+        return;
+    }
     const int id=static_cast<int>(message.getProperty("id",-1));
     if(kind=="select") {
         selected_=id>=0&&id<arson::eq::kMaxBands?id:-1;

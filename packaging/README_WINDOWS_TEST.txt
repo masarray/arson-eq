@@ -25,3 +25,5 @@ multiple instances (VST3), automation and save/recall. Report screenshots.
 The BUILD.txt manifest identifies the exact source commit used.
 
 LICENSING: GNU AGPLv3 / JUCE 9.0.4; see repository LICENSE.
+
+M2.5 engineering test: floating band card (no graph reflow), Ctrl+click group selection, Shift precision drag, Ctrl+Z/Y undo/redo, right-click context menu. Test 100% and 150% Windows DPI; verify same VST3 and Standalone controls. This is not a production-signed installer.

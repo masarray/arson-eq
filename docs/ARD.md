@@ -188,3 +188,20 @@ Default active-band dock is 70px with explicit MORE expansion to 151px for knob/
 
 
 **M2.4 native fallback QA / FFT optimization:** Windows first compilation identified native JUCE fallback's old `MeterFrame::before/after` field names. Its analyzer now captures independent L/R histories and combines their **FFT powers**, so anti-phase and right-only signals are visible even when WebView2 is unavailable. Four-channel WebView analyzer computes Hann coefficients and window coherent gain once at editor construction or FFT resolution changes, not with expensive trig for each FFT/channel at 25 Hz. Both changes preserve real-time safe core audio. The first CI failure is an integration regression, not evidence of validated Windows audio; recheck on a fresh dual-format CI run.
+
+
+## M2.5 — professional direct manipulation and immutable graph viewport (2026-10-30)
+
+The user-reported screenshot regression in M2.4 is a real layout bug: the 70px inspector is a flex sibling of the plot, and selection, deselection or MORE expansion changes the canvas height. This shifts log-frequency and dB coordinates mid gesture. M2.5 moves `#inspector` **inside** `#graphWrap` and composites it with absolute positioning. It never consumes flex height. An algorithm computes an initial card position from the selected handle, preferring below the plot line; if the handle is too near the bottom, it places the card above the handle. Card position is updated on selection, resize, and MORE toggle, **not on every drag frame**. Canvas width/height and FFT/meter geometry are unchanged by selection. Right-click context menu uses the same graph coordinate system.
+
+Native + WebView command contract:
+- Existing single-band `begin`/`edit`/`end` unchanged.
+- M2.5 adds `gestureMany {begin:boolean, items:[{id,fields:["freq","gain"]}]}` with max 24 entries, and `bulkEdit {entries:[{id,field,value}],gesture:boolean}` with max 168 entries; the native bridge validates each id and field through existing editor methods. One WebView IPC frame can update all 24 bands. No audio-thread work.
+- Ctrl/Meta click toggles band membership; Ctrl/Meta+A selects all enabled; selected set remains independent of native `selected_` primary band. Group drag applies **frequency ratio** from shared log-x displacement and **gain dB offset** to each eligible bell/shelf; cuts and notches preserve gain. Host gestures are opened for each band and closed on pointer release/cancel, including on destructor failure cleanup.
+- Shift drag scales pointer movement to ~17% of full-range for precision; frequency clipping and gain clipping remain within 20–20000 Hz / ±24dB, no parameter-ID migration.
+- Undo/Redo uses bounded 64-entry per-editor snapshots of all 24×7 band controls. The UI records one edit transaction per drag or knob gesture and sends one bounded `bulkEdit` transaction when undoing/redoing. Ctrl+Z/Y and toolbar buttons target **UI-local** history; external DAW undo/redo, automated host control, session-persisted undo stacks remain out-of-scope. The actual VST3 parameters are authoritative and changed with `setValueNotifyingHost` via JUCE. History is not a new persisted state parameter.
+- Context menu: right-click handle for edit/bypass/delete, right-click empty plot for add band, select all from menu. All actions are connected to actual band parameters, not inactive mock controls.
+
+Validation: JavaScript fake-host smoke now verifies floating nesting and compositor CSS contract, drag gestures, grouped `bulkEdit`, undo/redo, right-click and analyzer actions; Chromium visual snapshot of selected band on a fixed canvas. Real VSTHost/ArSonMix 100%/150% DPI, host automation and drag-click feedback remain mandatory before merge. Keep PR draft.
+
+**Limits:** Group selection currently supports aggregate drag/delete/bypass, not true Pro-Q 3 per-band solo, range editing, spectrum grab or fully integrated DAW undo. Do not claim those implemented. Advanced card may cover background spectrum but selected band nodes are protected by initial placement; it is not a reflowing bottom dock.
