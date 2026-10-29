@@ -30,3 +30,16 @@ All contributors and parallel ChatGPT threads must read PRD + ARD + this file **
 - **CI policy:** headless Linux + combined Windows plugin/native tests. Do not rerun unrelated workflows. Note that Windows VST3 compilation is **not** a DAW validation.
 - **Next release blockers:** host VST3 validation (pluginval/Steinberg validator), REAPER and a second DAW load/state/automation testing, click/noise golden captures, CPU profiling at 32/64/128 buffers, independent review of sample-rate change lifecycle.
 - **Next user features:** coherent band inspector and numeric editing, A/B, undo; dynamic EQ with proper envelope and sidechain only after the real-time foundation is validated.
+
+
+### M2 — MaSonKuPik UI port / premium compact native-web hybrid
+
+- [x] Implement standalone browser UI bundle (HTML/CSS/Canvas 2D and vanilla JS) with 24-band editing, premium dark appearance, interactive frequency graph and inspector.
+- [x] Use native JUCE WebBrowserComponent/WebView2 editor with local-only embedded resources, allow-listed host parameter updates, host gestures and native fallback.
+- [x] Drive spectrum and exact filter-response curves from the C++ DSP and existing lock-free ring; no JavaScript DSP or React build tool.
+- [x] Add CI javascript syntax and bridge wiring mock-DOM smoke test.
+- [ ] Validate host loads web UI rather than native fallback on a real Windows WebView2 runtime; test resizes, multiple instances, keyboard focus, automation, DAW save/restore.
+- [ ] Measure first-open latency, idle memory footprint, 25Hz analyzer UI CPU, 32/64/128 audio buffers and performance with many bands.
+- [ ] Production GUI enhancements: coherent undo/redo and A/B, spectral analyzer calibration, keyboard navigation, touch ergonomics, peak-hold; then Dynamic EQ engine work.
+
+Do not mark M2 DAW-validated based solely on the Windows compilation or mock-DOM smoke check.

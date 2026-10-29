@@ -1,5 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#if JUCE_WINDOWS
+#include "WebEditor.h"
+#endif
 #include <cmath>
 
 juce::String ArSonEQAudioProcessor::parameterId(int band, const char* field) {
@@ -115,6 +118,12 @@ void ArSonEQAudioProcessor::setStateInformation(const void* data,int size) {
     }
 }
 juce::AudioProcessorEditor* ArSonEQAudioProcessor::createEditor() {
+#if JUCE_WINDOWS
+    // Prefer MaSonKuPik-inspired zero-framework WebView2 GUI. Never force
+    // Internet Explorer as a fallback; retain the proven JUCE native editor.
+    if (ArSonEQWebEditor::supported())
+        return new ArSonEQWebEditor(*this);
+#endif
     return new ArSonEQEditor(*this);
 }
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new ArSonEQAudioProcessor(); }

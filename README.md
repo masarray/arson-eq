@@ -35,3 +35,12 @@ FabFilter and Pro-Q are trademarks of their respective owner, which is not affil
 The M1.5 upgrade uses preallocated dual-path crossfades for discrete filter topology, route and enabled changes. Continuous gain/frequency/Q movements use coefficient smoothing. A zero-latency minimum-phase DSP path remains the only implemented phase mode. A single-producer/single-consumer telemetry queue feeds two 4,096-point FFTs (input and output) on the editor thread, without FFT execution in the audio callback. UI transfer curves reflect L/R/M/S routing via a matrix calculation and are cached until parameters or geometry change.
 
 New headless checks include dynamic transitions, algebraic-vs-measured response, heap-allocation checks in DSP processing, and SPSC thread safety. This is **not** certification of click-free behavior on every host or of low-CPU targets: host testing, CPU profiles, pluginval and independent DAW testing remain necessary before release.
+
+
+## M2 Windows web GUI (MaSonKuPik-inspired)
+
+On Windows, the editor prefers a **premium dark HTML/CSS/Canvas 2D UI** hosted by JUCE 9 WebView2. Assets are embedded into the VST3; no installer web server, external network, React runtime, or npm package install. WebView2 must be available on the user's machine. If unsupported, the native JUCE editor is retained. The DSP continues to run independently of either editor.
+
+Control map: double-click empty canvas to create a bell filter, double-click an existing node to remove; drag for frequency/gain; wheel over a node for Q or cut slope; click for inspector; route filters to Stereo/L/R/Mid/Side; edit numeric frequency/gain/Q in the right inspector; Delete removes selected band. Native APVTS parameter IDs are not changed. The response curve is computed in the C++ DSP, and a bounded 25Hz FFT stream from the editor's native queue drives the input/output spectrum behind the curve.
+
+Source `WebUI/` is deliberately tiny and zero-dependency. Run `node --check WebUI/app.js && node WebUI/smoke.test.cjs` for an offline bridge wiring smoke check. This is NOT a substitute for actual DAW/WebView2 UI testing, host recall validation or CPU/memory profiling.

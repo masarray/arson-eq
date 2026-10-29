@@ -24,3 +24,7 @@ jobs:
         run: cmake --build build --config Release --parallel 2
       - name: Test DSP, transitions, analyzer queue
         run: ctest --test-dir build -C Release --output-on-failure
+      - name: JS syntax + offline UI bridge smoke (no npm needed)
+        run: |
+          node --check WebUI/app.js
+          node WebUI/smoke.test.cjs

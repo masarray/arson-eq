@@ -27,3 +27,10 @@ Reference links:
 - https://www.fabfilter.com/news/1543478400/fabfilter-releases-fabfilter-pro-q-3-equalizer-plug-in-with-dynamic-eq
 - https://github.com/juce-framework/JUCE
 - https://www.steinberg.net/developers/vstsdk/
+
+
+## M2 web UI port decision and origin
+
+Ported the *interaction contract* and aesthetic structure observed in `masonkupik/src/components/plugins/EQEditor.tsx`: dragging frequency/gain, per-band shape selection, wheel Q/slope, colorful handles, selected-band ghost curve, dark log-grid and a pre/post analyzer behind the response. The ArSonEQ implementation is rewritten as `WebUI/{index.html,style.css,app.js}` with no React, Zustand, Lucide, @/ imports, browser mastering chain, offline AudioContext, external fonts, build toolchain, or MaSonKuPik presets. It uses existing native JUCE/APVTS parameter IDs and native C++ response coefficients.
+
+The source MaSonKuPik app remains private and its files are not exported into the public destination. Avoid copying unrelated third-party UI assets and commercial FabFilter artwork. Similar *usability standards* are an inspiration, not a claim of Pro-Q3 design or feature parity.

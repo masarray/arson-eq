@@ -18,8 +18,19 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Cache pinned WebView2 SDK
+        uses: actions/cache@v4
+        id: webview2
+        with:
+          path: ${{ runner.temp }}/arsoneq-nuget
+          key: webview2-sdk-1.0.3485.44
+      - name: Install WebView2 headers and loader (build-time only)
+        if: steps.webview2.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44 -OutputDirectory "$env:RUNNER_TEMP/arsoneq-nuget" -NonInteractive
       - name: Configure pinned JUCE and headless tests
-        run: cmake -S . -B build-vst -DARSONEQ_BUILD_PLUGIN=ON -DARSONEQ_BUILD_TESTS=ON
+        shell: pwsh
+        run: cmake -S . -B build-vst -DARSONEQ_BUILD_PLUGIN=ON -DARSONEQ_BUILD_TESTS=ON "-DJUCE_WEBVIEW2_PACKAGE_LOCATION=$env:RUNNER_TEMP/arsoneq-nuget"
       - name: Compile Release VST3 and tests
         run: cmake --build build-vst --config Release --target ArSonEQ_VST3 arson_eq_core_tests arson_eq_rt_tests arson_eq_analyzer_tests --parallel 2
       - name: Verify native tests on Windows

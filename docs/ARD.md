@@ -94,3 +94,20 @@ The graph caches a 2x2 complex transfer matrix for the full cascade, including L
 The fixed APVTS parameter IDs remain unchanged. The project now tests single-thread finite/RT stress, measured sine gain against the analytic curve, switch continuity, no heap allocations during process, ring buffer overflow and concurrent producer-consumer integrity.
 
 CI efficiency: one small Linux headless job and one Windows VST3 job that also runs the headless tests; avoid a duplicate Windows headless matrix. CI begins only after a coherent multi-file milestone commit, not after each individual edit.
+
+
+## M2 GUI Architecture — native DSP + bundled JUCE WebView2 shell
+
+**Decision**: User explicitly requested porting MaSonKuPik EQ presentation, with an optimized web GUI. On Windows the editor uses JUCE 9.0.4 WebBrowserComponent with the WebView2 backend. Assets are three embedded local-only files: `WebUI/index.html`, `style.css`, `app.js`. There are **no npm runtime dependencies**, React, Tailwind, live web requests, localhost server, remote fonts, Web Audio DSP, or online CDNs. Windows native JUCE editor remains as a fallback if WebView2 options are unsupported; the DSP and VST3 parameters are unchanged.
+
+**Bridge and ownership**:
+- C++ reads the authoritative 168 APVTS host parameters (24 slots x 7) on the editor message thread at 25Hz. Browser can only submit allow-listed `enabled/type/route/freq/gain/q/slope` commands via one `eq-command` listener. Numeric values and indices are bounded. Gestures (`begin` / `edit` / `end`) use `beginChangeGesture`, `setValueNotifyingHost`, `endChangeGesture` to preserve host automation.
+- UI response curves are computed from the **same native DSP transfer matrix**, including stereo L/R and M/S; transmitted only on changed bands, sample rate, or selected band (256 log-spaced points). No offline Web Audio simulation or JS filter coefficients.
+- Pre/post audio telemetry enters existing fixed-size SPSC queue; the message thread performs FFT and sends 224 log bins via a bounded 25Hz event. The WebView does **not** call native audio processing, use Web Audio, or access the audio callback.
+- Canvas 2D retains MaSonKuPik interaction logic (double-click to add/remove, pointer drag, wheel Q/slope, notes and inspector), but uses a new self-contained DOM/Canvas implementation to avoid shipping its entire mastering app and dependency graph. Rendering is event-driven: only repaint after changed state or spectrum and maintain a 2x maximum device pixel ratio.
+- Embedded resource provider only serves exact static resource paths; page navigation is limited to local resource root; CSP denies all external origins. Avoid security expansion by never loading third-party pages in a native-integrated WebView.
+- WebView2 is a Chromium runtime and may use more baseline memory than JUCE's native editor. A tiny JS bundle is not the same as a zero-cost WebView2 process. Measure resident memory, first-open time, CPU and multi-instance behavior on Windows before calling the UI "ultra-lightweight".
+
+**CI**: Javascript syntax + no-dependency mock-DOM smoke on Linux; Windows build checks pinned WebView2 SDK headers/loader and embeds the assets into the VST3 artifact. Use a cached pinned NuGet SDK and retain native DSP test suites. Real DAW/WebView2 runtime inspection remains a gate.
+
+**Compatibility**: Never change existing host parameter IDs, plug-in ID, manufacturer ID, plugin binary format, state schema or audio process methods just to support GUI redesign. Native editor must remain available as a recovery path. If runtime initialization fails after CMake-supported capability probe, report failure and improve fallback rather than claiming success.

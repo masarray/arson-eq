@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<title>ArSonEQ Studio</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div id="app">
+  <header class="top"><div class="brand"><span class="logo">A<span class="mark">◢</span></span><div class="brand-text"><strong>ArSon<span>EQ</span></strong><small>PRECISION PARAMETRIC EQUALIZER</small></div></div>
+    <div class="top-center"><span class="dot"></span><span id="stateInfo">24-BAND / ZERO LATENCY</span></div>
+    <div class="top-actions"><button id="helpBtn" class="subtle" type="button" title="Keyboard and mouse controls">?</button><button id="viewBtn" class="subtle" type="button" title="Toggle analyzer">SPECTRUM <span id="spectrumStatus">ON</span></button><span class="version">v0.2 TEST</span></div></header>
+  <main class="workspace">
+    <section class="graph-shell"><div class="graph-toolbar">
+      <div class="graph-titles"><b>FREQUENCY RESPONSE</b><span id="hoverReadout">Hover spectrum for frequency</span></div>
+      <div class="legend"><i class="legend-dot input"></i> INPUT <i class="legend-dot output"></i> OUTPUT <i class="legend-dot equalizer"></i> EQ</div>
+    </div>
+    <div class="graph-wrap" id="graphWrap"><canvas id="eqCanvas"></canvas><div class="graph-overlay" id="graphTooltip" hidden></div></div>
+    <div class="graph-footer"><span>20 Hz</span><span>LOGARITHMIC FREQUENCY</span><span>20 kHz</span></div>
+    <div class="bottom-rail"><div class="rail-title"><span class="rail-indicator"></span> ACTIVE BANDS <span id="bandCount">0 / 24</span></div><div id="bandRail" class="band-rail"></div></div>
+    </section>
+    <aside class="inspector"><div class="inspector-heading"><span>BAND INSPECTOR</span><span id="activeLabel" class="mini-tag">NO SELECTION</span></div>
+      <div id="emptyInspector" class="empty-inspector"><div class="empty-orb">+</div><strong>Shape your sound</strong><p>Double-click the graph to add a band.<br>Click a node to edit its parameters.</p></div>
+      <div id="bandInspector" class="band-inspector" hidden>
+        <div class="band-identity"><div><span id="bandDot" class="band-dot"></span><b id="bandTitle">Band 01</b></div><button id="enableBtn" type="button" class="enable-btn" title="Toggle band">● ACTIVE</button></div>
+        <div class="field-group"><label for="typeSelect">FILTER SHAPE</label><select id="typeSelect"><option value="0">Bell</option><option value="1">Low Shelf</option><option value="2">High Shelf</option><option value="3">Low Cut</option><option value="4">High Cut</option><option value="5">Notch</option></select></div>
+        <div class="metric-grid"><label>FREQUENCY <div class="metric"><input id="freqInput" type="number" min="20" max="20000" step="1" inputmode="decimal"><span>Hz</span></div></label><label>GAIN <div class="metric"><input id="gainInput" type="number" min="-24" max="24" step=".1" inputmode="decimal"><span>dB</span></div></label></div>
+        <div class="metric-grid"><label>Q / WIDTH <div class="metric"><input id="qInput" type="number" min=".1" max="24" step=".01" inputmode="decimal"><span>Q</span></div></label><label>CUT SLOPE <div class="metric"><select id="slopeSelect"><option value="0">12 dB/oct</option><option value="1">24 dB/oct</option><option value="2">36 dB/oct</option><option value="3">48 dB/oct</option></select></div></label></div>
+        <div class="field-group"><label>CHANNEL PROCESSING</label><div class="route-group" id="routeGroup"><button data-route="0">STEREO</button><button data-route="1">L</button><button data-route="2">R</button><button data-route="3">MID</button><button data-route="4">SIDE</button></div></div>
+        <div class="inspector-bottom"><div class="note-info"><span>NEAREST NOTE</span><b id="noteLabel">—</b></div><button id="removeBtn" type="button" class="remove-btn" title="Remove this band">REMOVE BAND</button></div>
+      </div>
+      <div class="quick-help" id="quickHelp"><b>QUICK CONTROLS</b><div><kbd>2×</kbd> Add / remove</div><div><kbd>↔</kbd> Drag frequency / gain</div><div><kbd>↕</kbd> Scroll Q or slope</div><div><kbd>DEL</kbd> Remove selected</div></div>
+    </aside>
+  </main>
+  <footer class="status"><span id="bridgeStatus"><i class="connection"></i> CONNECTING TO AUDIO ENGINE</span><span>DESIGNED FOR HOST AUTOMATION · 24 FIXED SLOTS</span><span>ARSÓN AUDIO LAB</span></footer>
+</div><script src="app.js" defer></script></body></html>

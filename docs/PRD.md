@@ -71,3 +71,8 @@ Do not copy FabFilter branding, logos, code, proprietary filter algorithms, exac
 ## 8. Release acceptance
 
 VST3 validator, host projects, automation/snapshot recall, phase/frequency/impulse tests, soak stress, CPU/memory benchmark and at least two real audio listening scenarios must pass before declaring production. Release artifacts must be traceable to a pinned commit and have an actual reproducible build.
+
+
+## P1 premium web UI product requirements — MaSonKuPik-inspired editor
+
+The Windows VST3 ships a complete offline self-contained HTML/CSS/Canvas GUI through JUCE WebView2. The full DSP remains portable C++ and continues working if GUI/WebView2 cannot start. User-visible P1 needs: rich logarithmic graph, input/output spectrum, exact native response, eight rotating band palettes, click/drag handles, wheel Q or cut slope, double-click add/delete, inspector with numerical frequency/gain/Q controls and shape/slope/channel selectors, status and nearest musical note. Performance intent: no React rendering loop, no network access, at most 25Hz analyzer push from C++, capped DPR, event-driven redraw when idle. No claim of absolute low memory is permitted until WebView2 and native editor are benchmarked on actual Windows hardware. The plugin must remain useful in supported DAWs and preserve all 168 parameter identities and project-state persistence.
