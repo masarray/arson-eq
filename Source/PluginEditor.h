@@ -38,7 +38,9 @@ private:
     static constexpr int fftOrder_=12;
     static constexpr int fftSize_=1<<fftOrder_;
     juce::dsp::FFT fft_;
-    std::array<float,fftSize_> preHistory_{},postHistory_{},window_{};
+    std::array<float,fftSize_> preHistory_{},postHistory_{},preRightHistory_{},
+        postRightHistory_{},window_{};
+    std::array<float,fftSize_/2+1> prePower_{},postPower_{};
     std::array<float,fftSize_*2> fftPre_{},fftPost_{};
     std::array<float,fftSize_/2+1> levelsPre_{},levelsPost_{};
     size_t historyPosition_=0;

@@ -105,3 +105,6 @@ Do not declare commercial feature parity until these independent criteria are me
 - [ ] Confirm Windows VST3 + Standalone compiled from same SHA; real GUI screenshots and instrument QA.
 - [ ] Native full signal calibration 50Hz/1k/10k for 44.1/48/96k and CPU/RAM/multiple instances; remains required.
 - [ ] Preserve user analyzer settings across host reopen if needed; currently editor session settings.
+
+- [x] Repair native JUCE fallback's stereo analyzer field integration: four FFT passes, power combination after FFT.
+- [x] Precompute Hann window/coherent normalization once when selecting FFT size; remove repetitive per-channel trig in GUI update loop.

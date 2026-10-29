@@ -35,6 +35,7 @@ private:
     void setField(int, const char*, float);
     void sendState(bool response);
     void sendSpectrum();
+    void prepareWindow();
     void timerCallback() override;
     static constexpr int maxSize_=8192;
     static constexpr int points_=arson::eq::SpectrumDisplay::points;
@@ -46,6 +47,8 @@ private:
     juce::dsp::FFT fft10_{10},fft11_{11},fft12_{12},fft13_{13};
     // Fixed native UI-side storage, 4 real channels: PreL, PreR, PostL, PostR.
     std::array<std::array<float,maxSize_>,4> samples_{};
+    std::array<float,maxSize_> window_{};
+    double coherentAmplitude_=1.;
     std::array<float,2*maxSize_> fftScratch_{};
     std::array<std::array<float,maxSize_/2+1>,4> magnitudes_{};
     std::array<float,points_> levelsPre_{},levelsPost_{};

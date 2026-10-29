@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "DSP/SpectrumDisplay.h"
 #include <algorithm>
 #include <cmath>
 
@@ -105,8 +106,10 @@ void ArSonEQEditor::updateSpectrum() {
     int drained=0;
     while(drained<arson::eq::AnalyzerQueue::capacity &&
           processor_.analyzer().pop(frame)) {
-        preHistory_[historyPosition_]=frame.before;
-        postHistory_[historyPosition_]=frame.after;
+        preHistory_[historyPosition_]=frame.preL;
+        preRightHistory_[historyPosition_]=frame.preR;
+        postHistory_[historyPosition_]=frame.postL;
+        postRightHistory_[historyPosition_]=frame.postR;
         historyPosition_=(historyPosition_+1)&(fftSize_-1);
         ++framesSeen_;
         ++drained;
@@ -121,13 +124,33 @@ void ArSonEQEditor::updateSpectrum() {
     }
     fft_.performFrequencyOnlyForwardTransform(fftPre_.data());
     fft_.performFrequencyOnlyForwardTransform(fftPost_.data());
-    constexpr float normalization=4.0f/fftSize_;
     for(int i=0;i<=fftSize_/2;++i) {
         const size_t k=static_cast<size_t>(i);
-        const auto a=20.0f*std::log10(std::max(fftPre_[k]*normalization,1e-8f));
-        const auto b=20.0f*std::log10(std::max(fftPost_[k]*normalization,1e-8f));
-        levelsPre_[k]=0.75f*levelsPre_[k]+0.25f*std::clamp(a,-108.0f,0.0f);
-        levelsPost_[k]=0.75f*levelsPost_[k]+0.25f*std::clamp(b,-108.0f,0.0f);
+        prePower_[k]=fftPre_[k]*fftPre_[k];
+        postPower_[k]=fftPost_[k]*fftPost_[k];
+    }
+    // Reuse FFT scratch buffers to analyze RIGHT channel independently.
+    // Power is combined after FFT; anti-phase L/R no longer cancels.
+    for(int i=0;i<fftSize_;++i) {
+        const size_t pos=(historyPosition_+static_cast<size_t>(i))&(fftSize_-1);
+        const size_t k=static_cast<size_t>(i);
+        fftPre_[k]=preRightHistory_[pos]*window_[k];
+        fftPost_[k]=postRightHistory_[pos]*window_[k];
+    }
+    fft_.performFrequencyOnlyForwardTransform(fftPre_.data());
+    fft_.performFrequencyOnlyForwardTransform(fftPost_.data());
+    // Hann coherent amplitude normalization (sum of window / 2).
+    constexpr double coherentAmplitude=(fftSize_-1)*0.25;
+    for(int i=0;i<=fftSize_/2;++i) {
+        const size_t k=static_cast<size_t>(i);
+        const double prePower=0.5*(double(prePower_[k])+double(fftPre_[k])*fftPre_[k])/
+            (coherentAmplitude*coherentAmplitude);
+        const double postPower=0.5*(double(postPower_[k])+double(fftPost_[k])*fftPost_[k])/
+            (coherentAmplitude*coherentAmplitude);
+        const float a=arson::eq::SpectrumDisplay::db(prePower);
+        const float b=arson::eq::SpectrumDisplay::db(postPower);
+        levelsPre_[k]=0.75f*levelsPre_[k]+0.25f*std::clamp(a,-108.f,12.f);
+        levelsPost_[k]=0.75f*levelsPost_[k]+0.25f*std::clamp(b,-108.f,12.f);
     }
     spectrumReady_=true;
 }

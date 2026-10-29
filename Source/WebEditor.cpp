@@ -79,6 +79,7 @@ ArSonEQWebEditor::ArSonEQWebEditor(ArSonEQAudioProcessor& p)
     graphEngine_.prepare(p.configuredSampleRate());
     levelsPre_.fill(-120.f);
     levelsPost_.fill(-120.f);
+    prepareWindow();
     lastAnalysisTick_=juce::Time::getMillisecondCounter();
     setSize(900,535);
     processor_.analyzer().setEnabled(true);
@@ -164,7 +165,8 @@ void ArSonEQWebEditor::onCommand(const juce::var& message) {
         const auto value=message.getProperty("value",0);
         const int v=static_cast<int>(value);
         if(field=="fft" && v>=10 && v<=13) {
-            fftOrder_=v;framesSinceFFT_=0;levelsPre_.fill(-120.f);levelsPost_.fill(-120.f);
+            fftOrder_=v;prepareWindow();framesSinceFFT_=0;
+            levelsPre_.fill(-120.f);levelsPost_.fill(-120.f);
         } else if(field=="speed" && v>=0 && v<=2) speed_=v;
         else if(field=="range" && (v==60||v==90||v==120)) range_=v;
         else if(field=="tilt" && (static_cast<double>(value)==0. ||
@@ -241,6 +243,20 @@ void ArSonEQWebEditor::sendState(bool response) {
     }
     browser_.emitEventIfBrowserIsVisible("eq-state",value);
 }
+void ArSonEQWebEditor::prepareWindow() {
+    // Window construction is a one-shot editor/configuration operation, not
+    // 4 * FFT-size trigonometry on every 25 Hz paint/update.
+    const int N=1<<fftOrder_;
+    double sum=0.;
+    window_.fill(0.f);
+    for(int i=0;i<N;++i) {
+        const auto w=0.5f*(1.f-std::cos(
+            2.f*juce::MathConstants<float>::pi*i/(N-1)));
+        window_[static_cast<size_t>(i)]=w;
+        sum+=w;
+    }
+    coherentAmplitude_=std::max(1.,sum*0.5);
+}
 void ArSonEQWebEditor::sendSpectrum() {
     arson::eq::MeterFrame f;
     int drained=0;
@@ -269,17 +285,14 @@ void ArSonEQWebEditor::sendSpectrum() {
         const int N=1<<fftOrder_;
         const juce::dsp::FFT& fft=fftOrder_==10?fft10_:fftOrder_==11?fft11_:
                                   fftOrder_==12?fft12_:fft13_;
-        double hannSum=0.;
-        for(int i=0;i<N;++i)
-            hannSum+=0.5*(1.-std::cos(2.*juce::MathConstants<double>::pi*i/(N-1)));
-        const double coherentAmplitude=std::max(1.,hannSum*0.5);
+        const double coherentAmplitude=coherentAmplitude_;
         // CPU/render work happens solely on JUCE message thread.
         for(int channel=0;channel<4;++channel) {
             fftScratch_.fill(0.f);
             for(int i=0;i<N;++i) {
                 const auto pos=(head_+maxSize_-static_cast<size_t>(N)+static_cast<size_t>(i))&(maxSize_-1);
-                const auto w=0.5f*(1.f-std::cos(2.f*juce::MathConstants<float>::pi*i/(N-1)));
-                fftScratch_[static_cast<size_t>(i)]=samples_[static_cast<size_t>(channel)][pos]*w;
+                fftScratch_[static_cast<size_t>(i)]=
+                    samples_[static_cast<size_t>(channel)][pos]*window_[static_cast<size_t>(i)];
             }
             fft.performFrequencyOnlyForwardTransform(fftScratch_.data());
             std::copy_n(fftScratch_.data(),N/2+1,magnitudes_[static_cast<size_t>(channel)].data());
