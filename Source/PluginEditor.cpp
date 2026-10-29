@@ -10,15 +10,27 @@ constexpr const char* typeNames[]{"Bell","Low Sh","High Sh","Low Cut","High Cut"
 constexpr const char* routeNames[]{"Stereo","L","R","Mid","Side"};
 }
 ArSonEQEditor::ArSonEQEditor(ArSonEQAudioProcessor& owner)
-    : juce::AudioProcessorEditor(owner),processor_(owner) {
+    : juce::AudioProcessorEditor(owner),processor_(owner),fft_(fftOrder_) {
     setResizable(true,true);
     setResizeLimits(680,420,1440,900);
+    graphEngine_.prepare(processor_.configuredSampleRate());
+    for(int i=0;i<fftSize_;++i)
+        window_[static_cast<size_t>(i)] = 0.5f*(1.0f-std::cos(
+            2.0f*juce::MathConstants<float>::pi*i/(fftSize_-1)));
+    levelsPre_.fill(-108.0f);
+    levelsPost_.fill(-108.0f);
     setSize(930,570);
     setWantsKeyboardFocus(true);
-    graphEngine_.prepare(processor_.configuredSampleRate());
-    // Repaints only on parameter changes; never animates idle hover or FFT.
-    startTimerHz(20);
+    processor_.analyzer().setEnabled(true);
+    startTimerHz(30);
     timerCallback();
+}
+ArSonEQEditor::~ArSonEQEditor() {
+    stopTimer();
+    processor_.analyzer().setEnabled(false);
+}
+void ArSonEQEditor::resized() {
+    rebuildResponseCurves();
 }
 juce::Rectangle<float> ArSonEQEditor::graph() const {
     return juce::Rectangle<float>(48.f,73.f,
@@ -56,7 +68,91 @@ void ArSonEQEditor::timerCallback() {
             changed=true;
         }
     }
-    if(changed) repaint();
+    if(changed) rebuildResponseCurves();
+    updateSpectrum();
+    if(changed || spectrumReady_) repaint();
+}
+void ArSonEQEditor::rebuildResponseCurves() {
+    curveLeft_.clear();
+    curveRight_.clear();
+    curveCrossfeed_.clear();
+    const auto r=graph();
+    if(r.getWidth()<=0.0f || r.getHeight()<=0.0f) return;
+    const int points=std::min(420,std::max(120,static_cast<int>(r.getWidth()/2)));
+    for(int i=0;i<=points;++i) {
+        const auto x=r.getX()+r.getWidth()*static_cast<float>(i)/points;
+        const auto matrix=graphEngine_.matrixResponse(hzForX(x));
+        const auto db=[](const std::complex<double>& v) {
+            return 20.0*std::log10(std::max(std::abs(v),1e-20));
+        };
+        const auto yL=yForDb(db(matrix.ll));
+        const auto yR=yForDb(db(matrix.rr));
+        const auto cross=yForDb(db(matrix.lr));
+        if(i==0) {
+            curveLeft_.startNewSubPath(x,yL);
+            curveRight_.startNewSubPath(x,yR);
+            curveCrossfeed_.startNewSubPath(x,cross);
+        } else {
+            curveLeft_.lineTo(x,yL);
+            curveRight_.lineTo(x,yR);
+            curveCrossfeed_.lineTo(x,cross);
+        }
+    }
+}
+void ArSonEQEditor::updateSpectrum() {
+    arson::eq::MeterFrame frame;
+    bool got=false;
+    int drained=0;
+    while(drained<arson::eq::AnalyzerQueue::capacity &&
+          processor_.analyzer().pop(frame)) {
+        preHistory_[historyPosition_]=frame.before;
+        postHistory_[historyPosition_]=frame.after;
+        historyPosition_=(historyPosition_+1)&(fftSize_-1);
+        ++framesSeen_;
+        ++drained;
+        got=true;
+    }
+    if(!got || framesSeen_<fftSize_) return;
+    for(int i=0;i<fftSize_;++i) {
+        const size_t pos=(historyPosition_+static_cast<size_t>(i))&(fftSize_-1);
+        const size_t idx=static_cast<size_t>(i);
+        fftPre_[idx]=preHistory_[pos]*window_[idx];
+        fftPost_[idx]=postHistory_[pos]*window_[idx];
+    }
+    fft_.performFrequencyOnlyForwardTransform(fftPre_.data());
+    fft_.performFrequencyOnlyForwardTransform(fftPost_.data());
+    constexpr float normalization=4.0f/fftSize_;
+    for(int i=0;i<=fftSize_/2;++i) {
+        const size_t k=static_cast<size_t>(i);
+        const auto a=20.0f*std::log10(std::max(fftPre_[k]*normalization,1e-8f));
+        const auto b=20.0f*std::log10(std::max(fftPost_[k]*normalization,1e-8f));
+        levelsPre_[k]=0.75f*levelsPre_[k]+0.25f*std::clamp(a,-108.0f,0.0f);
+        levelsPost_[k]=0.75f*levelsPost_[k]+0.25f*std::clamp(b,-108.0f,0.0f);
+    }
+    spectrumReady_=true;
+}
+void ArSonEQEditor::drawSpectrum(juce::Graphics& g,juce::Rectangle<float> r) {
+    if(!spectrumReady_) return;
+    const double sr=processor_.configuredSampleRate();
+    juce::Path pre,post;
+    constexpr int points=320;
+    for(int i=0;i<=points;++i) {
+        const auto x=r.getX()+r.getWidth()*static_cast<float>(i)/points;
+        const auto f=hzForX(x);
+        const auto bin=std::clamp(static_cast<int>(std::lround(f*fftSize_/sr)),1,fftSize_/2);
+        const auto yForLevel=[&](float level) {
+            return r.getBottom() - std::clamp((level+108.0f)/96.0f,0.0f,1.0f)
+                *r.getHeight();
+        };
+        const auto a=yForLevel(levelsPre_[static_cast<size_t>(bin)]);
+        const auto b=yForLevel(levelsPost_[static_cast<size_t>(bin)]);
+        if(i==0){ pre.startNewSubPath(x,a);post.startNewSubPath(x,b); }
+        else { pre.lineTo(x,a);post.lineTo(x,b); }
+    }
+    g.setColour(juce::Colour(0xff708092).withAlpha(0.42f));
+    g.strokePath(pre,juce::PathStrokeType(1.0f));
+    g.setColour(juce::Colour(0xff5db8b2).withAlpha(0.55f));
+    g.strokePath(post,juce::PathStrokeType(1.15f));
 }
 void ArSonEQEditor::paint(juce::Graphics& g) {
     g.fillAll(bg);
@@ -86,15 +182,15 @@ void ArSonEQEditor::paint(juce::Graphics& g) {
         g.drawText((db>0?"+":"")+juce::String(db),
             juce::Rectangle<float>(7,y-7,32,15),juce::Justification::centredRight);
     }
-    juce::Path curve;
-    const int points=std::min(400,std::max(120,static_cast<int>(r.getWidth()/2)));
-    for(int i=0;i<=points;++i) {
-        const auto x=r.getX()+r.getWidth()*static_cast<float>(i)/points;
-        const auto y=yForDb(graphEngine_.stereoResponseDb(hzForX(x)));
-        if(i==0) curve.startNewSubPath(x,y);else curve.lineTo(x,y);
-    }
-    g.setColour(accent.withAlpha(0.9f));
-    g.strokePath(curve,juce::PathStrokeType(2.f));
+    // Analyzer is purely visual and drains on the message thread.
+    // Curves are cached and rebuilt only after parameter/geometry changes.
+    drawSpectrum(g,r);
+    g.setColour(accent.withAlpha(0.95f));
+    g.strokePath(curveLeft_,juce::PathStrokeType(2.f));
+    g.setColour(selectedColor.withAlpha(0.82f));
+    g.strokePath(curveRight_,juce::PathStrokeType(1.1f));
+    g.setColour(juce::Colour(0xff8a9ba8).withAlpha(0.45f));
+    g.strokePath(curveCrossfeed_,juce::PathStrokeType(0.65f));
     for(int i=0;i<arson::eq::kMaxBands;++i) {
         const auto& b=cached_[static_cast<size_t>(i)];
         if(!b.enabled) continue;
@@ -106,7 +202,7 @@ void ArSonEQEditor::paint(juce::Graphics& g) {
         if(i==selected_) { g.setColour(ink);g.drawEllipse(x-8,y-8,16,16,1.f); }
     }
     g.setColour(juce::Colour(0xff7e91a0));g.setFont(11.f);
-    g.drawText("Double-click: add / bypass   ·   Drag: frequency + gain   ·   Wheel: Q",
+    g.drawText("FFT: grey input / teal output    ·    EQ: cyan L→L / gold R→R    ·    Drag: Hz + dB",
         juce::Rectangle<int>(48,getHeight()-116,getWidth()-96,22),
         juce::Justification::centredLeft);
     drawModeButtons(g);

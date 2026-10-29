@@ -28,3 +28,10 @@ The initial reference is [MaSonKuPik](https://github.com/masarray/masonkupik), a
 This repository already uses **AGPL-3.0** (see LICENSE). JUCE 9 modules are offered under AGPLv3 or separate commercial terms. This project uses the AGPL path for the open-source edition. **A commercial JUCE licence may be required** for a future proprietary/closed-source edition. Steinberg VST 3 SDK 3.8+ is MIT-licensed; trademark requirements are separate. Verify all third-party dependencies and source provenance before redistribution.
 
 FabFilter and Pro-Q are trademarks of their respective owner, which is not affiliated with ArSonEQ. There is no FabFilter intellectual property or GUI artwork in this repository.
+
+
+## Native DSP / analyzer milestone
+
+The M1.5 upgrade uses preallocated dual-path crossfades for discrete filter topology, route and enabled changes. Continuous gain/frequency/Q movements use coefficient smoothing. A zero-latency minimum-phase DSP path remains the only implemented phase mode. A single-producer/single-consumer telemetry queue feeds two 4,096-point FFTs (input and output) on the editor thread, without FFT execution in the audio callback. UI transfer curves reflect L/R/M/S routing via a matrix calculation and are cached until parameters or geometry change.
+
+New headless checks include dynamic transitions, algebraic-vs-measured response, heap-allocation checks in DSP processing, and SPSC thread safety. This is **not** certification of click-free behavior on every host or of low-CPU targets: host testing, CPU profiles, pluginval and independent DAW testing remain necessary before release.

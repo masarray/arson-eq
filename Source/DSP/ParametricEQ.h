@@ -118,148 +118,250 @@ inline double magnitudeDb(const Coeff& c, double freq, double sr) noexcept {
     return 20.0*std::log10(std::max(std::abs(num)/std::max(std::abs(den),1e-20),1e-20));
 }
 
+
+struct StereoMatrix {
+    std::complex<double> ll{1.0,0.0}, lr{0.0,0.0};
+    std::complex<double> rl{0.0,0.0}, rr{1.0,0.0};
+};
+
 class Engine {
 public:
     void prepare(double rate) noexcept {
-        sampleRate_ = finiteClamp(rate,48000.0,8000.0,384000.0);
-        for (int i=0;i<kMaxBands;++i) {
-            auto& slot=slots_[static_cast<size_t>(i)];
-            slot.state={};
-            slot.current=slot.target=makeStages(slot.band,sampleRate_);
-            slot.remaining=0;
-            slot.active=slot.band.enabled;
-            slot.stages=configuredStages(slot.band);
+        sampleRate_ = finiteClamp(rate, 48000.0, 8000.0, 384000.0);
+        for (auto& s : slots_) {
+            s.primary = makePath(s.requested);
+            s.secondary = {};
+            s.fadeRemaining = 0;
+            s.fadeLength = 0;
         }
     }
     double sampleRate() const noexcept { return sampleRate_; }
-    Band band(int index) const noexcept { return valid(index) ? slots_[static_cast<size_t>(index)].band : Band{}; }
+    Band band(int index) const noexcept {
+        return valid(index) ? slots_[static_cast<size_t>(index)].requested : Band{};
+    }
     bool setBand(int index, Band value) noexcept {
         if (!valid(index)) return false;
-        value.frequency=finiteClamp(value.frequency,1000.0,20.0,0.45*sampleRate_);
-        value.gainDb=finiteClamp(value.gainDb,0.0,-24.0,24.0);
-        value.q=finiteClamp(value.q,1.0,0.1,24.0);
-        value.slope=stageCount(value.slope)*12;
-        if (static_cast<int>(value.type)<0 || static_cast<int>(value.type)>5) value.type=Type::Bell;
-        if (static_cast<int>(value.route)<0 || static_cast<int>(value.route)>4) value.route=Route::Stereo;
-        auto& slot=slots_[static_cast<size_t>(index)];
-        if (same(slot.band,value)) return false;
-        slot.band=value;
-        slot.stages=std::max(slot.stages,configuredStages(value));
-        slot.target=makeStages(value,sampleRate_);
-        slot.remaining=std::max(1,static_cast<int>(std::ceil(sampleRate_*0.008)));
-        slot.active=true; // keep processing during smooth disable transition
+        value.frequency = finiteClamp(value.frequency, 1000.0, 20.0, 0.45 * sampleRate_);
+        value.gainDb = finiteClamp(value.gainDb, 0.0, -24.0, 24.0);
+        value.q = finiteClamp(value.q, 1.0, 0.1, 24.0);
+        value.slope = stageCount(value.slope) * 12;
+        if (static_cast<int>(value.type) < 0 || static_cast<int>(value.type) > 5)
+            value.type = Type::Bell;
+        if (static_cast<int>(value.route) < 0 || static_cast<int>(value.route) > 4)
+            value.route = Route::Stereo;
+        auto& s = slots_[static_cast<size_t>(index)];
+        if (same(s.requested, value)) return false;
+        s.requested = value;
+        // During a topology crossfade, keep BOTH live branches untouched.
+        // Only the latest request is queued; the next change starts after fade.
+        // Restarting fades midway creates sharp discontinuities on automation.
+        if (s.fadeRemaining == 0) apply(s, value);
         return true;
     }
-    void reset() noexcept {
-        for (auto& slot:slots_) {
-            slot.state={};
-            slot.current=slot.target=makeStages(slot.band,sampleRate_);
-            slot.remaining=0;slot.active=slot.band.enabled;
-            slot.stages=configuredStages(slot.band);
-        }
-    }
-    // Called once per stereo sample: no allocations, no transcendental math.
+    void reset() noexcept { prepare(sampleRate_); }
     void process(double& left, double& right) noexcept {
-        for (auto& slot:slots_) {
-            if (!slot.active) continue;
-            advance(slot);
-            switch (slot.band.route) {
-                case Route::Stereo: left=filter(slot,left,0);right=filter(slot,right,1);break;
-                case Route::Left: left=filter(slot,left,0);break;
-                case Route::Right: right=filter(slot,right,1);break;
-                case Route::Mid: {
-                    const auto mid=0.5*(left+right);
-                    const auto d=filter(slot,mid,0)-mid;
-                    left+=d;right+=d;break;
-                }
-                case Route::Side: {
-                    const auto side=0.5*(left-right);
-                    const auto d=filter(slot,side,0)-side;
-                    left+=d;right-=d;break;
-                }
+        for (auto& s : slots_) {
+            if (s.fadeRemaining == 0) {
+                if (!s.primary.band.enabled) continue;
+                processStereoPath(s.primary, left, right);
+            } else {
+                const double inL=left,inR=right;
+                double oldL=inL,oldR=inR,newL=inL,newR=inR;
+                if (s.primary.band.enabled) processStereoPath(s.primary,oldL,oldR);
+                if (s.secondary.band.enabled) processStereoPath(s.secondary,newL,newR);
+                const double t=1.0-static_cast<double>(s.fadeRemaining-1)/s.fadeLength;
+                const double smooth=t*t*(3.0-2.0*t);
+                left=oldL+(newL-oldL)*smooth;
+                right=oldR+(newR-oldR)*smooth;
+                finishFade(s);
             }
         }
     }
     void processMono(double& sample) noexcept {
-        for (auto& slot:slots_) {
-            if (!slot.active) continue;
-            advance(slot);
-            if (slot.band.route==Route::Right || slot.band.route==Route::Side) continue;
-            sample=filter(slot,sample,0);
-        }
-    }
-    // Exact steady-state transfer for a single selected band (not temporal smoothing).
-    double bandResponseDb(int index, double frequency) const noexcept {
-        if (!valid(index) || !slots_[static_cast<size_t>(index)].band.enabled) return 0.0;
-        const auto& s=slots_[static_cast<size_t>(index)];
-        const auto coeff=makeStages(s.band,sampleRate_);
-        double db=0;
-        for (const auto& c:coeff) db+=magnitudeDb(c,frequency,sampleRate_);
-        return db;
-    }
-    // Useful for a stereo EQ curve. Mid/Side/one-channel responses are exposed
-    // separately through bandResponseDb and must not be misrepresented as a
-    // single universal L/R curve.
-    double stereoResponseDb(double frequency) const noexcept {
-        double db=0;
-        for (int i=0;i<kMaxBands;++i)
-            if (slots_[static_cast<size_t>(i)].band.enabled
-                && slots_[static_cast<size_t>(i)].band.route==Route::Stereo)
-                db+=bandResponseDb(i,frequency);
-        return db;
-    }
-private:
-    struct State { double z1=0,z2=0; };
-    struct Slot {
-        Band band{};
-        std::array<Coeff,kMaxStages> current{},target{};
-        std::array<std::array<State,kMaxStages>,2> state{};
-        int remaining=0;
-        int stages=0;
-        bool active=false;
-    };
-    static int configuredStages(const Band& b) noexcept {
-        if (!b.enabled) return 0;
-        return b.type==Type::LowCut || b.type==Type::HighCut ? stageCount(b.slope) : 1;
-    }
-    static bool valid(int index) noexcept { return index>=0 && index<kMaxBands; }
-    static void advance(Slot& s) noexcept {
-        if (s.remaining<=0) return;
-        const auto r=static_cast<double>(s.remaining);
-        for (int i=0;i<s.stages;++i) {
-            auto& c=s.current[static_cast<size_t>(i)];
-            const auto& t=s.target[static_cast<size_t>(i)];
-            c.b0+=(t.b0-c.b0)/r; c.b1+=(t.b1-c.b1)/r;
-            c.b2+=(t.b2-c.b2)/r; c.a1+=(t.a1-c.a1)/r; c.a2+=(t.a2-c.a2)/r;
-        }
-        --s.remaining;
-        if (s.remaining==0) {
-            const int next=configuredStages(s.band);
-            for (int lane=0;lane<2;++lane)
-                for(int i=next;i<s.stages;++i)
-                    s.state[static_cast<size_t>(lane)][static_cast<size_t>(i)]={};
-            s.stages=next;
-            if (!s.band.enabled) { s.active=false;s.state={}; }
-        }
-    }
-    static double filter(Slot& s, double input, int lane) noexcept {
-        auto value=input;
-        for (int i=0;i<s.stages;++i) {
-            const auto& c=s.current[static_cast<size_t>(i)];
-            auto& z=s.state[static_cast<size_t>(lane)][static_cast<size_t>(i)];
-            const auto out=c.b0*value+z.z1;
-            const auto next1=c.b1*value-c.a1*out+z.z2;
-            const auto next2=c.b2*value-c.a2*out;
-            if (!std::isfinite(out) || !std::isfinite(next1) || !std::isfinite(next2)) {
-                z={};value=0.0;
+        for (auto& s : slots_) {
+            if (s.fadeRemaining == 0) {
+                if (s.primary.band.enabled) processMonoPath(s.primary,sample);
             } else {
-                // Prevent long-lived denormals on silence without extra allocation.
-                z.z1=std::abs(next1)<1e-24 ? 0.0 : next1;
-                z.z2=std::abs(next2)<1e-24 ? 0.0 : next2;
-                value=out;
+                double oldValue=sample,newValue=sample;
+                if (s.primary.band.enabled) processMonoPath(s.primary,oldValue);
+                if (s.secondary.band.enabled) processMonoPath(s.secondary,newValue);
+                const double t=1.0-static_cast<double>(s.fadeRemaining-1)/s.fadeLength;
+                const double smooth=t*t*(3.0-2.0*t);
+                sample=oldValue+(newValue-oldValue)*smooth;
+                finishFade(s);
             }
         }
-        return value;
+    }
+    double bandResponseDb(int index, double frequency) const noexcept {
+        if (!valid(index)) return 0.0;
+        const Band b=slots_[static_cast<size_t>(index)].requested;
+        if (!b.enabled) return 0.0;
+        const auto coeff=makeStages(b,sampleRate_);
+        const auto count=stageCountFor(b);
+        double db=0.0;
+        for (int i=0;i<count;++i)
+            db+=magnitudeDb(coeff[static_cast<size_t>(i)],frequency,sampleRate_);
+        return db;
+    }
+    // The actual steady-state 2x2 matrix includes crossfeed from M/S.
+    // A graph showing only stereo-routed bands would conceal active filters.
+    StereoMatrix matrixResponse(double frequency) const noexcept {
+        StereoMatrix total;
+        if (!std::isfinite(frequency) || frequency<=0.0 || frequency>=sampleRate_*0.5)
+            return total;
+        for (const auto& slot : slots_) {
+            const Band b=slot.requested;
+            if (!b.enabled) continue;
+            std::complex<double> h{1.0,0.0};
+            const auto stages=makeStages(b,sampleRate_);
+            const auto z=std::polar(1.0,-2.0*kPi*frequency/sampleRate_);
+            const auto z2=z*z;
+            for(int k=0;k<stageCountFor(b);++k) {
+                const auto& c=stages[static_cast<size_t>(k)];
+                const auto numerator=c.b0+c.b1*z+c.b2*z2;
+                const auto denominator=1.0+c.a1*z+c.a2*z2;
+                h*=numerator/denominator;
+            }
+            StereoMatrix f;
+            const auto one=std::complex<double>(1.0,0.0);
+            switch (b.route) {
+                case Route::Stereo: f.ll=h; f.rr=h; break;
+                case Route::Left: f.ll=h; break;
+                case Route::Right: f.rr=h; break;
+                case Route::Mid:
+                    f.ll=(h+one)*0.5;f.rr=f.ll;
+                    f.lr=(h-one)*0.5;f.rl=f.lr;break;
+                case Route::Side:
+                    f.ll=(h+one)*0.5;f.rr=f.ll;
+                    f.lr=(one-h)*0.5;f.rl=f.lr;break;
+            }
+            StereoMatrix next;
+            next.ll=f.ll*total.ll+f.lr*total.rl;
+            next.lr=f.ll*total.lr+f.lr*total.rr;
+            next.rl=f.rl*total.ll+f.rr*total.rl;
+            next.rr=f.rl*total.lr+f.rr*total.rr;
+            total=next;
+        }
+        return total;
+    }
+    // Graph target: diagonal feed responses L->L and R->R.
+    // Nonzero lr/rl should be visualised separately as stereo crossfeed.
+    std::array<double,2> channelResponseDb(double frequency) const noexcept {
+        const auto m=matrixResponse(frequency);
+        const auto toDb=[](const std::complex<double>& z) noexcept {
+            return 20.0*std::log10(std::max(std::abs(z),1e-20));
+        };
+        return {toDb(m.ll),toDb(m.rr)};
+    }
+    double stereoResponseDb(double frequency) const noexcept {
+        const auto r=channelResponseDb(frequency);
+        return (r[0]+r[1])*0.5;
+    }
+private:
+    struct State { double z1=0.0,z2=0.0; };
+    struct Path {
+        Band band{};
+        std::array<Coeff,kMaxStages> coefficients{};
+        std::array<Coeff,kMaxStages> target{};
+        std::array<std::array<State,kMaxStages>,2> state{};
+        int stages=0;
+        int morphRemaining=0;
+    };
+    struct Slot {
+        Band requested{};
+        Path primary{},secondary{};
+        int fadeRemaining=0,fadeLength=0;
+    };
+    static bool valid(int index) noexcept { return index>=0 && index<kMaxBands; }
+    static int stageCountFor(const Band& b) noexcept {
+        if(!b.enabled) return 0;
+        return b.type==Type::LowCut || b.type==Type::HighCut ? stageCount(b.slope):1;
+    }
+    static bool sameTopology(const Band& a,const Band& b) noexcept {
+        return a.enabled==b.enabled && a.type==b.type
+            && a.route==b.route && stageCountFor(a)==stageCountFor(b);
+    }
+    Path makePath(const Band& b) const noexcept {
+        Path p;
+        p.band=b;
+        p.stages=stageCountFor(b);
+        p.coefficients=p.target=makeStages(b,sampleRate_);
+        return p;
+    }
+    void apply(Slot& s,const Band& value) noexcept {
+        if (sameTopology(s.primary.band,value)) {
+            s.primary.band=value;
+            if (value.enabled) {
+                s.primary.target=makeStages(value,sampleRate_);
+                s.primary.morphRemaining=std::max(1,static_cast<int>(sampleRate_*0.012));
+            }
+            return;
+        }
+        // Only topology changes run two paths. This also smooths bypass,
+        // hard cut-slope switches and L/R/M/S routing changes.
+        s.secondary=makePath(value);
+        s.fadeLength=std::max(1,static_cast<int>(sampleRate_*0.010));
+        s.fadeRemaining=s.fadeLength;
+    }
+    void finishFade(Slot& s) noexcept {
+        if (--s.fadeRemaining!=0) return;
+        s.primary=s.secondary;
+        s.secondary={};
+        if (!same(s.requested,s.primary.band))
+            apply(s,s.requested);
+    }
+    static void advance(Path& p) noexcept {
+        if(p.morphRemaining==0) return;
+        const double remain=static_cast<double>(p.morphRemaining);
+        for(int i=0;i<p.stages;++i) {
+            auto& c=p.coefficients[static_cast<size_t>(i)];
+            const auto& t=p.target[static_cast<size_t>(i)];
+            c.b0+=(t.b0-c.b0)/remain;c.b1+=(t.b1-c.b1)/remain;
+            c.b2+=(t.b2-c.b2)/remain;c.a1+=(t.a1-c.a1)/remain;
+            c.a2+=(t.a2-c.a2)/remain;
+        }
+        --p.morphRemaining;
+    }
+    static double filter(Path& p,double sample,int lane) noexcept {
+        double x=sample;
+        for(int i=0;i<p.stages;++i) {
+            const auto& c=p.coefficients[static_cast<size_t>(i)];
+            auto& z=p.state[static_cast<size_t>(lane)][static_cast<size_t>(i)];
+            const double y=c.b0*x+z.z1;
+            const double z1=c.b1*x-c.a1*y+z.z2;
+            const double z2=c.b2*x-c.a2*y;
+            if(!std::isfinite(y)||!std::isfinite(z1)||!std::isfinite(z2)) {
+                z={};x=0.0;
+            } else {
+                z.z1=std::abs(z1)<1e-24?0.0:z1;
+                z.z2=std::abs(z2)<1e-24?0.0:z2;
+                x=y;
+            }
+        }
+        return x;
+    }
+    static void processStereoPath(Path& p,double& l,double& r) noexcept {
+        advance(p);
+        switch(p.band.route) {
+            case Route::Stereo: l=filter(p,l,0);r=filter(p,r,1);break;
+            case Route::Left: l=filter(p,l,0);break;
+            case Route::Right: r=filter(p,r,1);break;
+            case Route::Mid: {
+                const auto mid=(l+r)*0.5;
+                const auto delta=filter(p,mid,0)-mid;
+                l+=delta;r+=delta;break;
+            }
+            case Route::Side: {
+                const auto side=(l-r)*0.5;
+                const auto delta=filter(p,side,0)-side;
+                l+=delta;r-=delta;break;
+            }
+        }
+    }
+    static void processMonoPath(Path& p,double& x) noexcept {
+        advance(p);
+        if(p.band.route!=Route::Right && p.band.route!=Route::Side)
+            x=filter(p,x,0);
     }
     double sampleRate_=48000.0;
     std::array<Slot,kMaxBands> slots_{};

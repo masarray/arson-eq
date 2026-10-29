@@ -3,6 +3,7 @@
 #include <array>
 #include <atomic>
 #include "DSP/ParametricEQ.h"
+#include "DSP/AnalyzerQueue.h"
 
 class ArSonEQAudioProcessor final : public juce::AudioProcessor {
 public:
@@ -33,6 +34,7 @@ public:
     arson::eq::Band readBand(int index) const noexcept;
     double configuredSampleRate() const noexcept { return preparedRate_.load(std::memory_order_relaxed); }
     juce::AudioProcessorValueTreeState parameters;
+    arson::eq::AnalyzerQueue& analyzer() noexcept { return analyzer_; }
 
 private:
     struct ParamRefs {
@@ -49,6 +51,7 @@ private:
     template<typename Sample> void processAudio(juce::AudioBuffer<Sample>&);
     std::array<ParamRefs, arson::eq::kMaxBands> raw_{};
     arson::eq::Engine engine_;
+    arson::eq::AnalyzerQueue analyzer_;
     std::atomic<double> preparedRate_{48000.0};
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArSonEQAudioProcessor)
 };

@@ -79,3 +79,18 @@ Before shipping: run Steinberg validator, JUCE pluginval, REAPER, and a second D
 ## Stage gates
 
 M0: repo structure, standalone DSP, unit tests, CMake; M1: VST3 adapter, host params, graph interaction and save state; M2: audited transitions, spectrum analyzer, host validation; M3: dynamic EQ; M4: phase variants/surround/other formats. Consult [ROADMAP.md](ROADMAP.md) for binary acceptance. Avoid costly CI on unneeded toolchains until the host wrapper exists.
+
+
+## M1.5 / early M2 engineering reconciliation (2026-10-29)
+
+After auditing the initial native implementation, naive coefficient interpolation was replaced for **discrete topology changes**: enabled/bypass, filter shape, route and number of stages now use two fixed preallocated processing paths, a 10ms smoothstep crossfade and bounded last-request-wins pending transitions. This avoids changing the same path's topology/state instantly or restarting an unfinished transition. Topology crossfades cost extra CPU **only while a change is in progress**, and never introduce latency. Frequency/Q/gain updates retain stable-coefficient interpolation over 12ms on the active path. All work is performed with fixed storage and no heap operations on the callback.
+
+**Limitations:** exact pop/click-free behavior still requires listening and more stringent amplitude-difference stress tests with external hosts; high-rate topology automation can defer the most recent request by the remaining crossfade duration. For 24 automated bands all changing simultaneously, two-path execution increases CPU temporarily. This must be benchmarked at small buffers; it is not yet a measured CPU guarantee.
+
+The analyzer uses a fixed 16,384-frame SPSC ring of {pre-mono, post-mono} samples, with release/acquire indexed ownership. The audio thread only pushes when an editor is open; on overflow telemetry frames are dropped rather than delaying audio. The editor consumes on a 30Hz timer, computes Hann-windowed 4,096-point pre/post FFTs on the message thread, and draws both behind the EQ curve. FFT size limits low-frequency resolution (~11.7Hz per bin at 48kHz); future analyzer iterations can use lower-frequency multiresolution windows if CPU budget permits. The audio path does **not** invoke the FFT.
+
+The graph caches a 2x2 complex transfer matrix for the full cascade, including L/R/M/S and crossfeed. UI plots diagonal L<-L and R<-R responses and a subdued crossfeed line, recomputing only when EQ parameters, sample rate or editor geometry changes. This is a more accurate representation than the initial stereo-only approximate graph. It does not claim to equal a measured music-spectrum FFT or FabFilter's proprietary phase algorithms.
+
+The fixed APVTS parameter IDs remain unchanged. The project now tests single-thread finite/RT stress, measured sine gain against the analytic curve, switch continuity, no heap allocations during process, ring buffer overflow and concurrent producer-consumer integrity.
+
+CI efficiency: one small Linux headless job and one Windows VST3 job that also runs the headless tests; avoid a duplicate Windows headless matrix. CI begins only after a coherent multi-file milestone commit, not after each individual edit.

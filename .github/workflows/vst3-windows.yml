@@ -1,9 +1,9 @@
-name: Windows VST3 build
+name: Windows VST3 build + native tests
 on:
   pull_request:
     paths:
-      - "Source/Plugin**"
-      - "Source/DSP/**"
+      - "Source/**"
+      - "tests/**"
       - "CMakeLists.txt"
       - ".github/workflows/vst3-windows.yml"
   workflow_dispatch:
@@ -18,14 +18,16 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Configure pinned JUCE 9.0.4 VST3
-        run: cmake -S . -B build-vst -DARSONEQ_BUILD_PLUGIN=ON -DARSONEQ_BUILD_TESTS=OFF
-      - name: Compile Release VST3
-        run: cmake --build build-vst --config Release --target ArSonEQ_VST3 --parallel 2
-      - name: Publish test-only plugin artifact
+      - name: Configure pinned JUCE and headless tests
+        run: cmake -S . -B build-vst -DARSONEQ_BUILD_PLUGIN=ON -DARSONEQ_BUILD_TESTS=ON
+      - name: Compile Release VST3 and tests
+        run: cmake --build build-vst --config Release --target ArSonEQ_VST3 arson_eq_core_tests arson_eq_rt_tests arson_eq_analyzer_tests --parallel 2
+      - name: Verify native tests on Windows
+        run: ctest --test-dir build-vst -C Release --output-on-failure
+      - name: Publish test-only VST3
         uses: actions/upload-artifact@v4
         with:
-          name: ArSonEQ-Windows-x64-VST3-UNVALIDATED
+          name: ArSonEQ-M1-5-Windows-x64-VST3-TEST
           path: build-vst/ArSonEQ_artefacts/Release/VST3/
           if-no-files-found: error
           retention-days: 7

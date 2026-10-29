@@ -20,3 +20,13 @@ All contributors and parallel ChatGPT threads must read PRD + ARD + this file **
 4. Do not copy third-party proprietary GUI artwork, trademarks, presets or algorithms.
 5. CI budget: fast headless DSP checks on each PR, heavy platform/plugin builds only on meaningful PR/controlled dispatch; cache dependencies where viable.
 6. Make precise claims: **Designed**, **Implemented**, **Compiled**, **Validated in DAW** are different statuses.
+
+
+### M1.5+Early M2 integrated milestone (2026-10-29)
+
+- **Implemented:** preallocated dual paths for topology changes, 10ms fades, deferred pending topology updates, 12ms continuous parameter smoothing; unchanged 24-slot host parameter contract.
+- **Implemented:** actual L/R transfer matrix including M/S crossfeed, cached frequency response UI, 4,096 point dual pre/post FFT and lock-free bounded telemetry queue.
+- **Added acceptance tests:** analytic vs measured frequency response, high-frequency automation/topology stress, audio-path allocation tracking, SPSC concurrency and capacity overflow.
+- **CI policy:** headless Linux + combined Windows plugin/native tests. Do not rerun unrelated workflows. Note that Windows VST3 compilation is **not** a DAW validation.
+- **Next release blockers:** host VST3 validation (pluginval/Steinberg validator), REAPER and a second DAW load/state/automation testing, click/noise golden captures, CPU profiling at 32/64/128 buffers, independent review of sample-rate change lifecycle.
+- **Next user features:** coherent band inspector and numeric editing, A/B, undo; dynamic EQ with proper envelope and sidechain only after the real-time foundation is validated.
