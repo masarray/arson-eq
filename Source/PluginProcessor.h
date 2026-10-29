@@ -1,0 +1,54 @@
+#pragma once
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <array>
+#include <atomic>
+#include "DSP/ParametricEQ.h"
+
+class ArSonEQAudioProcessor final : public juce::AudioProcessor {
+public:
+    ArSonEQAudioProcessor();
+    ~ArSonEQAudioProcessor() override = default;
+    const juce::String getName() const override { return "ArSonEQ"; }
+    void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+    void releaseResources() override {}
+    void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlock(juce::AudioBuffer<double>&, juce::MidiBuffer&) override;
+    bool supportsDoublePrecisionProcessing() const override { return true; }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
+    juce::AudioProcessorEditor* createEditor() override;
+    bool hasEditor() const override { return true; }
+    double getTailLengthSeconds() const override { return 0; }
+    bool acceptsMidi() const override { return false; }
+    bool producesMidi() const override { return false; }
+    bool isMidiEffect() const override { return false; }
+    int getNumPrograms() override { return 1; }
+    int getCurrentProgram() override { return 0; }
+    void setCurrentProgram(int) override {}
+    const juce::String getProgramName(int) override { return {}; }
+    void changeProgramName(int, const juce::String&) override {}
+    void getStateInformation(juce::MemoryBlock&) override;
+    void setStateInformation(const void*, int) override;
+
+    static juce::String parameterId(int band, const char* field);
+    arson::eq::Band readBand(int index) const noexcept;
+    double configuredSampleRate() const noexcept { return preparedRate_.load(std::memory_order_relaxed); }
+    juce::AudioProcessorValueTreeState parameters;
+
+private:
+    struct ParamRefs {
+        std::atomic<float>* enabled = nullptr;
+        std::atomic<float>* type = nullptr;
+        std::atomic<float>* route = nullptr;
+        std::atomic<float>* freq = nullptr;
+        std::atomic<float>* gain = nullptr;
+        std::atomic<float>* q = nullptr;
+        std::atomic<float>* slope = nullptr;
+    };
+    static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout();
+    void syncBands() noexcept;
+    template<typename Sample> void processAudio(juce::AudioBuffer<Sample>&);
+    std::array<ParamRefs, arson::eq::kMaxBands> raw_{};
+    arson::eq::Engine engine_;
+    std::atomic<double> preparedRate_{48000.0};
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArSonEQAudioProcessor)
+};

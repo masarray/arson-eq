@@ -1,0 +1,25 @@
+name: Fast DSP checks
+on:
+  pull_request:
+    paths:
+      - "Source/DSP/**"
+      - "tests/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/dsp.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dsp:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure standalone core
+        run: cmake -S . -B build -DARSONEQ_BUILD_PLUGIN=OFF -DARSONEQ_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release --parallel 2
+      - name: Test
+        run: ctest --test-dir build --config Release --output-on-failure
