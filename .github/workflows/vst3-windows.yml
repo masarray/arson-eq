@@ -1,0 +1,31 @@
+name: Windows VST3 build
+on:
+  pull_request:
+    paths:
+      - "Source/Plugin**"
+      - "Source/DSP/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/vst3-windows.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: vst3-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  vst3:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure pinned JUCE 9.0.4 VST3
+        run: cmake -S . -B build-vst -DARSONEQ_BUILD_PLUGIN=ON -DARSONEQ_BUILD_TESTS=OFF
+      - name: Compile Release VST3
+        run: cmake --build build-vst --config Release --target ArSonEQ_VST3 --parallel 2
+      - name: Publish test-only plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArSonEQ-Windows-x64-VST3-UNVALIDATED
+          path: build-vst/ArSonEQ_artefacts/Release/VST3/
+          if-no-files-found: error
+          retention-days: 7
