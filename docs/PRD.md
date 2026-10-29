@@ -88,3 +88,12 @@ For the primary 900×535 editor, neither graph nor X labels may clip. No permane
 ## M2.2 dual-format deliverables (release gate)
 
 Windows builds must always generate BOTH a Windows x64 `ArSonEQ.vst3` folder and a directly runnable `ArSonEQ.exe`. Both must use the identical native DSP engine, 24-band parameter set, GUI, and preset/state contract. Standalone must expose device selection via JUCE standard audio configuration; it must never claim to process all system playback without an actual input/output route. CI must package both binaries and fail if either output is missing. Passing compilation alone is insufficient: test real audio input/output, save/reopen, GUI window lifecycle and available audio drivers on physical Windows before release.
+
+
+### M2.3 Professional instrument UI — acceptance driven by VSTHost images
+
+1. **No curve obstruction:** When a band is selected, the edit deck is below (not over) the plot in dedicated layout space; deselection restores full plot height. This is invariant for every frequency/gain and editor size.
+2. **Proportions:** Retain 900×535 default outer editor content size with 42px brand/header, min-height flexible log graph, 143px control deck only when selected, and 25px status. No giant right inspector or full-screen form controls.
+3. **Professional graph:** Visually dominant dark-purple/charcoal spectrum, restrained 3/6dB horizontal grid, dedicated independent analyzer level rail, response line in warm gold with green positive and muted warm negative fill, per-band colored handles, selected-band isolated response. Host C++ transfer curve owns correctness.
+4. **Compact controls:** Four clearly grouped slots for filter type, rotary/numeric Frequency, Gain, Q, with Stereo/L/R/M/S, slope, note, bypass/delete. All remain properly automated VST3 params. Disabled gain on cut/notch avoids false operation.
+5. **QA:** Headless visual mock screenshot at 900×535 is review evidence only; actual Windows VSTHost/ArSonMix screenshot, DPI, sound and state regression tests are required before declaring competitive polish.

@@ -66,3 +66,14 @@ Do not mark M2 DAW-validated based solely on the Windows compilation or mock-DOM
 - [ ] Confirm CI produces both and the exact ZIP matches the commit.
 - [ ] Run Standalone on real Windows input/output devices; test WASAPI/ASIO audio settings, microphone processing, sample-rate changes, persistent states and GUI windows.
 - [ ] Run VST3 inside ArSonMix/REAPER and pluginval; test automation, multiple instances and DAW restore.
+
+
+### M2.3: Full graph, non-obstructing control deck (VSTHost evidence)
+- [x] Remove absolute node-following inspector permanently; structural flex layout prevents the band editor from covering a curve or node.
+- [x] Replace heavy navy dashboard look with ArSonMix metallic instrument details and Pro-EQ-inspired charcoal plot, warm gold curve, green boost fill.
+- [x] Keep default 900×535, independent right dB rail and adaptive ±12 to ±24dB axis; logarithmic X mapping accounts for right rail.
+- [x] Maintain native host gesture automation, 24-band parameter identity, FFT visibility gate, both VST3 + Standalone targets.
+- [x] Local JS smoke verifies DOM sibling, no-occlusion layout, gestures, band list and analyzer switch.
+- [ ] Linux Chromium 900×535 screenshot published and reviewed; verify actual paint at reference size.
+- [ ] Windows VST3 + Standalone Release build both formats; verify no regression.
+- [ ] Inspect actual VSTHost and ArSonMix screenshots at 100% and 150% DPI and measure WebView2 memory/CPU before production merge.

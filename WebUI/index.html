@@ -14,12 +14,15 @@
     <canvas id="eqCanvas" aria-label="Interactive parametric EQ graph"></canvas>
     <div class="graph-overlay" id="graphTooltip" hidden></div>
     <div class="graph-hud">
-      <span class="graph-mode">SPECTRAL RESPONSE <i class="graph-cyan"></i></span>
-      <span class="graph-info" id="hoverReadout">Double-click to add an EQ band</span>
+      <span class="graph-mode">PARAMETRIC EQ <i class="graph-cyan"></i></span>
+      <span class="graph-info" id="hoverReadout">Double-click to add a band</span>
     </div>
     <div class="axis-hint">dB</div>
     <div class="band-list" id="bandList" hidden><div class="popup-head">ACTIVE BANDS <span>CLICK TO SELECT</span></div><div id="bandRail" class="band-rail"></div></div>
-    <div class="inspector" id="inspector" hidden>
+    <div id="quickHelp" class="quick-help" hidden><b>EQ CONTROLS</b><p>Double-click empty graph: add filter</p><p>Double-click node / Delete: remove</p><p>Drag node: Hz + dB</p><p>Wheel on node: Q / cut slope</p><p>Click node: edit filter</p></div>
+  </div>
+  <!-- Context dock has its own layout space: graph, nodes and labels never sit underneath it. -->
+    <div class="inspector" id="inspector" hidden role="region" aria-label="Selected filter controls">
       <div class="inspector-top"><div class="identity"><i id="bandDot"></i><span id="bandTitle">BAND 01</span><span id="activeLabel" class="channel-badge">BAND</span></div>
         <div class="inspector-actions"><button id="enableBtn" type="button" title="Enable / bypass filter">ON</button><button id="removeBtn" type="button" title="Delete band">×</button><button id="closeInspector" type="button" title="Close inspector">▾</button></div>
       </div>
@@ -38,12 +41,10 @@
         </div>
       </div>
     </div>
-    <div id="quickHelp" class="quick-help" hidden><b>EQ CONTROLS</b><p>Double-click empty graph: add filter</p><p>Double-click node / Delete: remove</p><p>Drag node: Hz + dB</p><p>Wheel on node: Q / cut slope</p><p>Click node: edit filter</p></div>
-  </div>
 </main>
 <footer class="bottom-bar">
   <div class="footer-left"><span class="signal-flag"><i></i> PARAMETRIC EQ</span><span class="footer-divider"></span><span id="bridgeStatus">CONNECTING</span></div>
-  <div class="footer-center"><span class="legend-mark pre"></span> PRE <span class="legend-mark post"></span> POST <span class="legend-mark curve"></span> RESPONSE</div>
+  <div class="footer-center"><span class="legend-mark pre"></span> PRE <span class="legend-mark post"></span> POST <span class="legend-mark curve"></span> EQ CURVE</div>
   <div class="footer-right"><span>ZERO LATENCY</span><span class="footer-divider"></span><b>ARSON AUDIO</b></div>
 </footer>
 </div><script src="app.js" defer></script></body></html>

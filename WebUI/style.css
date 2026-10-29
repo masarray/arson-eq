@@ -1,33 +1,157 @@
-:root{color-scheme:dark;--base:#10151d;--chrome:#1b2632;--chrome-dark:#111924;--edge:#394c5c;--bright:#dceaf5;--muted:#8799aa;--blue:#56d1f0;--gold:#e9c17a}
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10151d;color:var(--bright);font:11px "Segoe UI",Tahoma,Arial,sans-serif;user-select:none;-webkit-user-select:none}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:1px solid #71dbee;outline-offset:1px}button:disabled,input:disabled,select:disabled{opacity:.48;cursor:default}button:hover:not(:disabled){border-color:#78aabd}#app{width:100%;height:100%;display:flex;flex-direction:column;min-width:700px;min-height:410px;background:#0d121a}
-.top{flex:0 0 43px;height:43px;display:flex;align-items:center;gap:9px;padding:0 10px 0 13px;background:linear-gradient(180deg,#283b49 0%,#1d2a37 48%,#111923 100%);border-bottom:1px solid #496070;box-shadow:inset 0 1px #425364,0 2px 6px #05080ca8;z-index:5}
-.brand{min-width:193px;display:flex;align-items:center;white-space:nowrap;gap:7px}.brand-glyph{font-weight:800;font-size:21px;line-height:25px;letter-spacing:-3px;color:#edf6fd;text-shadow:0 1px 5px #0b111a}.brand-glyph span{font-size:10px;color:#4ed4ec;margin-left:1px}.brand-name{font-size:19px;font-weight:750;letter-spacing:-1.3px;color:#f1f6ff;text-shadow:0 1px #070c12}.brand-name span{font-weight:400;color:#64d4ef}.brand-separator{width:1px;height:17px;margin-left:2px;background:#526472}.brand-caption{color:#9cbdce;font-size:8px;letter-spacing:1px}
-.preset-center{display:flex;align-items:center;justify-content:space-between;min-width:178px;max-width:282px;flex:1;height:25px;border:1px solid #344755;background:linear-gradient(#101b26,#1c2936);box-shadow:inset 0 1px 3px #050b11;border-radius:3px;color:#b8cad8;letter-spacing:.6px;font-size:9px;padding:0 7px}.preset-center .preset-arrows{font-size:15px;color:#7d99a9;line-height:1}.preset-center #stateInfo{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:238px;text-align:center}
-.top-actions{display:flex;gap:5px;margin-left:auto;align-items:center}.bar-button,.help-button{height:26px;border:1px solid #3d5060;background:linear-gradient(180deg,#d1dadd 0%,#afbec6 48%,#8296a2 49%,#bbcbd0 100%);box-shadow:inset 0 1px #f3f8fa,0 1px 2px #04080c;color:#173344;border-radius:3px;padding:0 9px;font-size:9px;letter-spacing:.5px;font-weight:700}.bar-button b{font-weight:600;color:#365c6f;font-size:9px}.bar-button.active #spectrumStatus{color:#006f63;font-weight:800}.help-button{width:25px;font-size:12px;padding:0}.bar-button.active{border-color:#6d9eae}
-.workspace{flex:1;min-height:0;overflow:hidden}.graph-wrap{position:relative;width:100%;height:100%;min-height:0;background:#14141a;overflow:hidden;touch-action:none}.graph-wrap canvas{display:block;width:100%;height:100%;cursor:crosshair}.graph-hud{position:absolute;top:8px;left:11px;right:35px;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none;font-size:9px;letter-spacing:.6px;color:#86939f;text-shadow:0 1px #101015}.graph-mode{letter-spacing:1.4px;color:#92aaba;font-size:8px;font-weight:600}.graph-cyan{display:inline-block;width:4px;height:4px;border-radius:50%;background:#57d9f0;margin-left:6px;box-shadow:0 0 8px #57d9f0}.graph-info{font-family:Consolas,"Lucida Console",monospace;color:#778795;white-space:nowrap;max-width:50%;overflow:hidden;text-overflow:ellipsis}.axis-hint{position:absolute;right:8px;top:26px;color:#9fb2c0;font-size:9px;pointer-events:none}.graph-overlay{position:absolute;z-index:3;pointer-events:none;background:#142330ee;border:1px solid #496276;border-radius:3px;padding:5px 8px;box-shadow:0 3px 12px #000a;font:10px Consolas,monospace;white-space:nowrap}.graph-overlay[hidden]{display:none}
-.inspector{position:absolute;z-index:7;width:466px;max-width:calc(100% - 20px);padding:0 10px 8px;border:1px solid #52626c;border-radius:7px;background:linear-gradient(#35343a 0%,#272831 22%,#232833 45%,#1b2530 100%);box-shadow:inset 0 1px #6d7180,0 4px 0 #10182099,0 14px 40px #000c;color:#e4edf5;pointer-events:auto}.inspector[hidden],.band-inspector[hidden],#emptyInspector[hidden],.band-list[hidden],.quick-help[hidden]{display:none!important}.inspector::before{content:"";position:absolute;inset:1px;border-radius:6px;pointer-events:none;border:1px solid #30394488}
-.inspector-top{height:34px;display:flex;align-items:center;justify-content:space-between;gap:7px;border-bottom:1px solid #50616d80}.identity,.inspector-actions{display:flex;align-items:center;gap:7px}.identity{font-size:10px;font-weight:700;letter-spacing:.5px}.identity i{height:9px;width:9px;border-radius:50%;background:#56d5ef;box-shadow:0 0 9px currentColor}.channel-badge{border:1px solid #455564;background:#222a35;padding:3px 6px;font-weight:400;font-size:9px;color:#aac0cc;border-radius:3px}.inspector-actions button{height:22px;min-width:23px;padding:0 5px;border-radius:3px;border:1px solid #566674;color:#bcd2dc;background:linear-gradient(#3b4954,#222c37);box-shadow:inset 0 1px #53616c}.inspector-actions #enableBtn{font-size:9px;min-width:38px;color:#77e4bb;border-color:#486b66}.inspector-actions #enableBtn.off{color:#b4b6ba;border-color:#5b5760}.inspector-actions #removeBtn{color:#e7a0a4;font-size:16px}.inspector-actions #closeInspector{font-size:14px;color:#9db1bf}
-.band-inspector{padding-top:10px}.parameter-row{display:grid;grid-template-columns:1.15fr 1.08fr 1fr .78fr;gap:7px}.parameter{display:block;min-width:0;color:#98a8b5;font-size:8px;letter-spacing:1px;font-weight:600}.parameter>select,.number{margin-top:5px;width:100%;height:34px;border:1px solid #56616a;border-radius:4px;background:linear-gradient(#131c26,#263340);box-shadow:inset 0 1px 2px #060a10;color:#f1f7fc}.parameter>select{padding:0 7px;font-size:11px;cursor:pointer;letter-spacing:0}.number{display:flex;align-items:center;padding:0 7px;gap:3px}.number input{min-width:0;width:100%;border:0;outline:0;background:transparent;color:#edf8ff;font:16px "Segoe UI",Arial,sans-serif;text-align:center;font-weight:650;letter-spacing:-.3px}.number span{color:#8aabba;font:9px Consolas,monospace}.number input::-webkit-inner-spin-button{-webkit-appearance:none}.number:focus-within{border-color:#61dcf0}.inspector-bottom{display:flex;align-items:end;justify-content:space-between;gap:9px;padding-top:10px;margin-top:9px;border-top:1px solid #53616e66}.channel-wrap>span,.slope-wrap,.note-info>span{display:block;color:#96a7b5;font-weight:700;font-size:8px;letter-spacing:1px}.channel-wrap{flex:1}.route-group{display:flex;gap:2px;margin-top:5px}.route-group button{padding:0 8px;min-width:25px;height:24px;border:1px solid #445463;color:#9fb7c4;background:linear-gradient(#344352,#182632);border-radius:3px;box-shadow:inset 0 1px #415567;font-size:9px;font-weight:700}.route-group button.active{background:linear-gradient(#2685a1,#16506b);border-color:#45abc8;color:#edfcff;box-shadow:0 0 8px #3edbec44,inset 0 1px #6fc3dd}.slope-wrap{min-width:77px}.slope-wrap select{display:block;margin-top:5px;height:24px;width:100%;border:1px solid #47596a;background:#172533;color:#d3e7ee;border-radius:3px;font-size:9px;padding:0 4px}.note-info{min-width:43px;display:flex;flex-direction:column;gap:5px;text-align:right}.note-info b{font:12px Consolas,monospace;color:#e2c68d}
-.band-list{position:absolute;right:16px;top:9px;z-index:8;width:268px;max-height:min(360px,85%);background:linear-gradient(#273748,#182330);border:1px solid #526679;border-radius:5px;box-shadow:0 10px 30px #000a;padding:9px}.popup-head{display:flex;justify-content:space-between;color:#c4d6df;font-size:10px;letter-spacing:1px;padding:2px 4px 8px;border-bottom:1px solid #445567}.popup-head span{font-size:8px;color:#788d9e}.band-rail{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding-top:9px;overflow-y:auto;max-height:292px}.band-chip{background:linear-gradient(#2b4251,#172b3c);border:1px solid #446075;color:#d5e3ea;border-radius:3px;height:28px;font:10px Consolas,monospace}.band-chip.selected{outline:1px solid #a6dce8;outline-offset:-2px}.band-chip:hover{background:#3a5970}.quick-help{position:absolute;right:17px;top:9px;z-index:9;width:260px;background:linear-gradient(#29394a,#15222f);border:1px solid #546f82;border-radius:5px;padding:12px;box-shadow:0 12px 28px #0009}.quick-help b{font-size:10px;letter-spacing:1px;color:#71dcef}.quick-help p{font-size:10px;margin:9px 0;color:#c4d4de}
-.bottom-bar{flex:0 0 29px;height:29px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 11px;background:linear-gradient(#263545,#131c28);border-top:1px solid #405364;box-shadow:inset 0 1px #4e6576;color:#a6bbc7;font:9px "Segoe UI",Arial,sans-serif}.footer-left,.footer-center,.footer-right{display:flex;align-items:center;gap:9px;white-space:nowrap}.signal-flag{color:#bcd0dd;font-weight:650;letter-spacing:.6px}.signal-flag i{display:inline-block;width:5px;height:5px;background:#48d4ab;border-radius:50%;margin-right:4px;box-shadow:0 0 7px #4ddfbd}.footer-divider{height:12px;width:1px;background:#455b6b}.footer-left #bridgeStatus{font-size:9px;color:#89a4b6;max-width:190px;overflow:hidden;text-overflow:ellipsis}.footer-center{font-size:8px;letter-spacing:1px;color:#91a3b1}.legend-mark{width:6px;height:6px;border-radius:50%;display:inline-block}.legend-mark.pre{background:#7e91a3}.legend-mark.post{background:#5ed6ac}.legend-mark.curve{background:#61dcec}.footer-right{color:#90acbf}.footer-right b{font-size:8px;letter-spacing:1.2px;color:#68cce0}
-@media(max-width:830px){.brand{min-width:153px}.brand-caption{display:none}.preset-center{min-width:130px}.top{gap:6px}.top-actions{gap:3px}.bar-button{padding:0 5px}.footer-center{display:none}}
-@media(max-height:490px){.top{flex-basis:38px;height:38px}.bottom-bar{flex-basis:26px;height:26px}.inspector{transform:scale(.90);transform-origin:top left}}
+/* ArSonEQ M2.3 - compact non-obscuring instrument deck.
+   Visual language: ArSonMix metal/glass; interaction language: professional
+   logarithmic EQ. No transitions, backdrop-filter, React or remote assets. */
+:root{color-scheme:dark;--glass:#151923;--graph:#19171f;--line:#37333f;--ink:#e7e9ec;
+  --sub:#98a0ad;--soft:#728092;--gold:#eac66f;--cyan:#64d8e8;--green:#6fd7a0;
+  --metal1:#78828d;--metal2:#333b46;--metal3:#141d27}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#0d1118;color:var(--ink);
+  font:11px "Segoe UI",Arial,sans-serif;user-select:none;-webkit-user-select:none}
+button,select,input{font:inherit}button{cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:1px solid #79d8e9;outline-offset:1px}
+button:disabled,input:disabled,select:disabled{opacity:.43;cursor:default}
+button:hover:not(:disabled){border-color:#91a4b5}
+[hidden]{display:none!important}
+#app{display:flex;flex-direction:column;width:100%;height:100%;min-width:700px;min-height:420px;background:#12151e}
 
-/* Studio-grade tactile rotary controls. Canvas paints only when state changes. */
-.parameter-row{grid-template-columns:1.17fr 1.06fr 1.04fr .82fr;align-items:stretch}
-.parameter>select,.number{height:27px}
-.parameter>select{font-size:10px}
-.number input{font-size:12px}
-.shape-glyph{display:grid;place-items:center;height:34px;margin:4px auto 6px;color:#67d6df;font-size:28px;line-height:26px;text-shadow:0 0 8px #52e0e433}
-.knob-face{display:block;position:relative;height:35px;width:35px;margin:3px auto 6px;cursor:ns-resize;touch-action:none;border-radius:50%;border:2px solid #455a69;
- background:radial-gradient(circle at 36% 25%,#69757f 0%,#2b343d 49%,#101922 71%),
- conic-gradient(from 210deg,#53687a,#bdcbd4 26%,#435361 55%,#141f2a 82%,#51677a);
- box-shadow:inset 0 1px 1px #e0eef777,inset 0 -2px 4px #040a12,0 2px 3px #05080ca6}
-.knob-face::before{content:"";position:absolute;inset:-5px;border:1px solid #405363;border-radius:50%;pointer-events:none}
-.knob-face::after{content:"";position:absolute;left:50%;top:50%;width:3px;height:7px;border-radius:4px;background:#73ebea;box-shadow:0 0 5px #4eead9;
- transform:translate(-50%,-50%) rotate(var(--angle,-140deg)) translateY(-12px);pointer-events:none}
-.knob-face.gain::after{background:#f3c977;box-shadow:0 0 5px #e9b65d}
-.knob-face.q::after{background:#c6daf0;box-shadow:0 0 5px #9ab8e1}
-.knob-face:hover{border-color:#6cbbc6}
-.inspector-bottom{margin-top:8px;padding-top:7px}
-@media(max-height:490px){.knob-face{height:29px;width:29px}.shape-glyph{height:29px}.inspector{transform:scale(.92)}}
+/* Short anodized-aluminum header. The user's music remains the hero. */
+.top{height:42px;flex:0 0 42px;display:flex;align-items:center;gap:10px;padding:0 12px;
+  background:linear-gradient(180deg,#363c47,#242a34 52%,#1b222d 53%,#202935);
+  border-bottom:1px solid #515463;box-shadow:inset 0 1px #626b78,0 2px 6px #0008;z-index:5}
+.brand{display:flex;align-items:center;gap:6px;min-width:190px;white-space:nowrap}
+.brand-glyph{font-size:20px;line-height:22px;font-weight:800;letter-spacing:-3px;color:#f5faff}
+.brand-glyph span{color:#62dbed;font-size:9px;margin-left:2px}
+.brand-name{font-size:19px;font-weight:760;letter-spacing:-1.3px;color:#f4f5f9}
+.brand-name span{color:var(--cyan);font-weight:400}
+.brand-separator{width:1px;height:18px;background:#58616c;margin:0 2px}
+.brand-caption{font-size:8px;letter-spacing:1.2px;color:#a1a7b0}
+.preset-center{min-width:160px;max-width:300px;flex:1;height:24px;display:flex;
+  align-items:center;justify-content:space-between;gap:8px;padding:0 8px;
+  border:1px solid #414b5a;border-radius:4px;background:linear-gradient(#151b27,#202736);
+  color:#b7c0cc;font-size:9px;letter-spacing:.5px;box-shadow:inset 0 1px 4px #0006}
+#stateInfo{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.preset-arrows{font-size:16px;color:#8c98a4}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+.bar-button,.help-button{height:25px;border:1px solid #626d79;border-radius:4px;
+  background:linear-gradient(#c9d1d4,#9eacb4 48%,#71838c 49%,#aebdc3);
+  box-shadow:inset 0 1px #fff9,0 1px 2px #0006;color:#1b3443;font-size:9px;
+  font-weight:730;letter-spacing:.3px;padding:0 9px}
+.bar-button b{color:#295469;font-weight:700;margin-left:3px}
+.bar-button.active #spectrumStatus{color:#075f4b;font-weight:850}
+.help-button{width:25px;padding:0;font-size:12px}
+
+/* The graph and dock are SIBLINGS. No editing control may cover a graph pixel. */
+.workspace{flex:1;min-height:0;display:flex;flex-direction:column;align-items:stretch;overflow:hidden;
+  background:radial-gradient(ellipse at 50% -10%,#2b2a35,#171c26 70%,#111823)}
+.graph-wrap{width:100%;flex:1;min-height:0;position:relative;overflow:hidden;touch-action:none;
+  background:var(--graph);border-bottom:1px solid #41404b}
+.graph-wrap canvas{display:block;width:100%;height:100%;cursor:crosshair}
+.graph-hud{position:absolute;top:8px;left:13px;right:48px;display:flex;
+  align-items:center;justify-content:space-between;gap:12px;pointer-events:none}
+.graph-mode{font-size:9px;letter-spacing:1.2px;font-weight:700;color:#a7a5ad}
+.graph-cyan{display:inline-block;width:5px;height:5px;border-radius:50%;margin-left:6px;
+  background:var(--cyan)}
+.graph-info{font:10px Consolas,monospace;color:#93949f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.axis-hint{position:absolute;right:8px;top:24px;color:#a0a0b1;font:9px Consolas,monospace}
+.graph-overlay{position:absolute;pointer-events:none;z-index:3;padding:6px 8px;
+  border:1px solid #60616f;border-radius:4px;background:#282731f0;
+  box-shadow:0 4px 12px #000a;font:10px Consolas,monospace;white-space:nowrap;color:#f1f0ee}
+
+/* Compact editable control island BELOW the graph: no position:absolute.
+   Its height is fixed so window resize never pushes controls out of frame. */
+.inspector{position:relative;flex:0 0 143px;min-height:143px;
+  align-self:center;width:min(570px,calc(100% - 26px));margin:0 auto 7px;padding:0 12px 7px;
+  border:1px solid #515663;border-radius:10px;color:#dfe5ec;
+  background:linear-gradient(160deg,#34333b 0%,#292b35 30%,#212a35 75%,#182430 100%);
+  box-shadow:inset 0 1px #777580,0 1px 0 #121720,0 6px 16px #0009}
+.inspector::before{content:"";position:absolute;inset:1px;border:1px solid #33384290;
+  border-radius:9px;pointer-events:none}
+.inspector-top{height:26px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid #5c606a72}
+.identity,.inspector-actions{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.identity{font-size:10px;font-weight:750;letter-spacing:.5px}
+.identity i{width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 7px #a8acb766}
+.channel-badge{font-size:8px;font-weight:500;letter-spacing:.5px;color:#b9c5d1;
+  background:#242b35;border:1px solid #4b5562;border-radius:3px;padding:2px 5px}
+.inspector-actions button{height:21px;min-width:24px;padding:0 6px;color:#d5dbe1;
+  border:1px solid #666a72;border-radius:3px;background:linear-gradient(#59616b,#343d48)}
+.inspector-actions #enableBtn{color:#86efc3;border-color:#48766d;font-weight:800}
+.inspector-actions #enableBtn.off{color:#c7b8ad;border-color:#71635e}
+.inspector-actions #removeBtn{font-size:14px;color:#e6abb0}
+.inspector-actions #closeInspector{font-size:13px}
+.band-inspector{padding-top:5px}
+.parameter-row{display:grid;grid-template-columns:1.24fr 1fr 1fr .85fr;gap:10px;align-items:start}
+.parameter{display:block;position:relative;min-width:0;color:#a6a6ae;font-size:8px;
+  font-weight:700;letter-spacing:1px;text-align:center}
+.parameter select,.number{margin-top:3px;height:23px;width:100%;min-width:0;border:1px solid #5b6773;border-radius:4px;
+  background:linear-gradient(#141d29,#2a3440);color:#f4f5fa;box-shadow:inset 0 1px 2px #0007}
+.parameter select{padding:0 7px;font-size:10px;letter-spacing:0;cursor:pointer}
+.shape-glyph{display:grid;place-items:center;height:28px;margin:1px auto;color:#88dbd5;
+  font-size:24px;line-height:28px}
+.knob-face{display:block;position:relative;width:30px;height:30px;margin:2px auto 0;
+  border:2px solid #586676;border-radius:50%;cursor:ns-resize;touch-action:none;
+  background:radial-gradient(circle at 35% 25%,#87929e,#465361 40%,#1b2632 71%,#090f17);
+  box-shadow:inset 0 1px 2px #e7edf099,inset 0 -2px 4px #030810,0 2px 2px #000b}
+.knob-face::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid #485464}
+.knob-face::after{content:"";position:absolute;left:50%;top:50%;height:7px;width:3px;border-radius:3px;
+  background:#67e4e8;transform:translate(-50%,-50%) rotate(var(--angle,-140deg)) translateY(-11px);
+  box-shadow:0 0 5px #57d5dc}
+.knob-face.gain::after{background:var(--gold);box-shadow:0 0 6px #e7ba5c}
+.knob-face.q::after{background:#d1e1ee}
+.knob-face:hover{border-color:#85cad7}
+.number{display:flex;align-items:center;gap:3px;padding:0 6px}
+.number input{min-width:0;width:100%;border:0;outline:0;background:transparent;text-align:center;
+  color:#f0f2f6;font-weight:700;font-size:11px}
+.number span{font:9px Consolas,monospace;color:#9daabb}
+.number input::-webkit-inner-spin-button{-webkit-appearance:none}
+.number:focus-within{border-color:#75d6e2}
+.inspector-bottom{display:flex;justify-content:space-between;align-items:end;gap:10px;
+  margin-top:6px;padding-top:5px;border-top:1px solid #545c6970}
+.channel-wrap>span,.slope-wrap,.note-info>span{display:block;color:#a2a9b4;
+  font-size:8px;letter-spacing:.8px;font-weight:700}
+.channel-wrap{min-width:180px}
+.route-group{display:flex;gap:3px;margin-top:3px}
+.route-group button{min-width:28px;height:20px;padding:0 5px;font-size:9px;
+  border:1px solid #5b6775;border-radius:3px;color:#b5bfcc;background:linear-gradient(#3c4a58,#222e3a)}
+.route-group button.active{border-color:#54adc4;color:#effcff;background:linear-gradient(#2c7c93,#12516b)}
+.slope-wrap{min-width:72px}.slope-wrap select{display:block;width:100%;height:20px;margin-top:3px;
+  border:1px solid #566475;border-radius:3px;background:#23313f;color:#d2dce6;font-size:9px}
+.note-info{min-width:42px;text-align:right}.note-info b{display:block;margin-top:5px;
+  font:12px Consolas,monospace;color:var(--gold)}
+
+/* Drop-down overlays only for optional band navigation/help; never the EQ edit panel. */
+.band-list,.quick-help{position:absolute;z-index:8;right:12px;top:8px;border-radius:5px;
+  border:1px solid #5c6b7a;background:linear-gradient(#2b3a49,#1b2835);
+  box-shadow:0 8px 22px #000a}
+.band-list{width:260px;padding:10px;max-height:80%}
+.popup-head{display:flex;justify-content:space-between;gap:6px;font-size:10px;
+  padding-bottom:7px;border-bottom:1px solid #526071;font-weight:700}
+.popup-head span{font-size:8px;color:#91a1b0}
+.band-rail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;
+  max-height:230px;overflow:auto;padding-top:8px}
+.band-chip{height:26px;border:1px solid #536e7b;border-radius:3px;
+  background:#253f4f;color:#d2e4ee;font:10px Consolas,monospace}
+.band-chip.selected{border-color:#d2dce1}
+.quick-help{width:246px;padding:12px}
+.quick-help b{color:#80dfe8;letter-spacing:1px}
+.quick-help p{font-size:10px;margin:9px 0;color:#c1d0d9}
+
+/* Low visual noise; does not compete with a 0 dB axis. */
+.bottom-bar{flex:0 0 25px;height:25px;display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:0 11px;border-top:1px solid #4b5360;
+  background:linear-gradient(#303945,#1a2531);box-shadow:inset 0 1px #485664;
+  color:#a7b5c3;font:9px "Segoe UI",Arial,sans-serif}
+.footer-left,.footer-center,.footer-right{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.signal-flag{font-weight:700;letter-spacing:.3px;color:#d0d9e3}
+.signal-flag i{display:inline-block;width:5px;height:5px;margin-right:4px;border-radius:50%;background:#6ce4ab}
+.footer-divider{width:1px;height:10px;background:#5a6877}
+#bridgeStatus{max-width:170px;overflow:hidden;text-overflow:ellipsis;color:#95aabc}
+.footer-center{font-size:8px;letter-spacing:.5px}
+.legend-mark{display:inline-block;width:5px;height:5px;border-radius:50%}
+.legend-mark.pre{background:#8c91a6}.legend-mark.post{background:#71dca6}
+.legend-mark.curve{background:#f5c873}
+.footer-right{color:#b4bac5}.footer-right b{font-size:8px;letter-spacing:1px;color:#72cbda}
+@media(max-width:840px){.brand{min-width:150px}.brand-caption{display:none}
+  .preset-center{min-width:120px}.bar-button{padding:0 6px}.footer-center{display:none}}
+@media(max-height:510px){.inspector{flex-basis:133px;min-height:133px;margin-bottom:3px}
+  .inspector-bottom{margin-top:3px;padding-top:3px}.knob-face{height:27px;width:27px}}

@@ -8,12 +8,14 @@ const $=id=>document.getElementById(id);
 const canvas=$("eqCanvas"), wrap=$("graphWrap"), ctx=canvas.getContext("2d",{alpha:false});
 const TYPES=["Bell","Low Shelf","High Shelf","Low Cut","High Cut","Notch"];
 const COLORS=["#ff9473","#e5b855","#a99aff","#77d5a4","#53ccd2","#b58eea","#eb87a9","#78b6e9"];
-const F0=20,F1=20000,RANGE=18,MAX=24;
+const F0=20,F1=20000,MAX=24,RIGHT_RAIL=40;
+let rangeDb=12;
+const plotWidth=width=>Math.max(1,width-RIGHT_RAIL);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-const hzX=(f,w)=>Math.log(clamp(f,F0,F1)/F0)/Math.log(F1/F0)*w;
-const xHz=(x,w)=>F0*Math.pow(F1/F0,clamp(x/w,0,1));
-const dbY=(v,h)=>h*0.5-clamp(v,-RANGE,RANGE)/RANGE*h*0.5;
-const yDb=(y,h)=>clamp((h*0.5-y)/(h*0.5)*RANGE,-RANGE,RANGE);
+const hzX=(f,width)=>Math.log(clamp(f,F0,F1)/F0)/Math.log(F1/F0)*plotWidth(width);
+const xHz=(x,width)=>F0*Math.pow(F1/F0,clamp(x/plotWidth(width),0,1));
+const dbY=(v,h)=>h*0.5-clamp(v,-rangeDb,rangeDb)/rangeDb*h*0.5;
+const yDb=(y,h)=>clamp((h*0.5-y)/(h*0.5)*rangeDb,-rangeDb,rangeDb);
 const isCut=t=>t===3||t===4;
 const isFiniteNumber=n=>typeof n==="number"&&Number.isFinite(n);
 const noteFor=hz=>{if(!isFiniteNumber(hz)||hz<=0)return "—";const midi=Math.round(69+12*Math.log2(hz/440));return ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"][(midi+1200)%12]+(Math.floor(midi/12)-1);};
@@ -80,18 +82,6 @@ const renderRail=()=>{
     chip.onclick=()=>select(i);rail.appendChild(chip);
   }
 };
-const positionInspector=()=>{
-  if(selected<0||$("inspector").hidden)return;
-  const b=bands[selected],panel=$("inspector");
-  const pw=panel.offsetWidth||466,ph=panel.offsetHeight||174;
-  const x=hzX(b.freq,w),y=dbY(isCut(b.type)?0:b.gain,h);
-  const px=clamp(x-pw*.5,10,Math.max(10,w-pw-10));
-  const roomBelow=h-y-22,roomAbove=y-30;
-  let py=roomBelow>=ph+10?y+19:roomAbove>=ph+10?y-ph-19:h-ph-12;
-  py=clamp(py,33,Math.max(33,h-ph-12));
-  panel.style.left=Math.round(px)+"px";
-  panel.style.top=Math.round(py)+"px";
-};
 const renderInspector=()=>{
   const b=selected>=0?bands[selected]:null;
   $("inspector").hidden=!b;
@@ -110,6 +100,7 @@ const renderInspector=()=>{
   setValue("gainInput",Math.round(b.gain*100)/100);
   setValue("qInput",Math.round(b.q*100)/100);
   $("gainInput").disabled=isCut(b.type)||b.type===5;
+  $("gainKnob").style.opacity=$("gainInput").disabled?".35":"1";
   $("slopeSelect").disabled=!isCut(b.type);
   $("noteLabel").textContent=noteFor(b.freq);
   $("typeGlyph").textContent=["⌒","◡","◠","╱","╲","⌄"][b.type]||"⌒";
@@ -122,100 +113,149 @@ const renderInspector=()=>{
   $("qKnob").style.setProperty("--angle",knobAngle(b.q,.1,24,true));
   $("routeGroup").querySelectorAll("button").forEach(btn=>
     btn.classList.toggle("active",Number(btn.dataset.route)===b.route));
-  positionInspector();
+  // Dock is a flex sibling of the graph, never an absolute canvas overlay.
 };
-const mapLocal=e=>{const r=canvas.getBoundingClientRect();return{x:clamp(e.clientX-r.left,0,r.width),y:clamp(e.clientY-r.top,0,r.height)};};
-const drawSmooth=(arr,color,lineWidth=2,fill=false,alpha=1)=>{
-  if(!arr||arr.length<2)return;
+const mapLocal=e=>{const r=canvas.getBoundingClientRect();return{x:clamp(e.clientX-r.left,0,plotWidth(r.width)),y:clamp(e.clientY-r.top,0,r.height)};};
+// Canvas renderer: only native DSP response data are graphed. No JS biquads.
+const responsePath=arr=>{
+  const pathWidth=plotWidth(w);
+  if(!arr||arr.length<2)return false;
   ctx.beginPath();
   for(let i=0;i<arr.length;i++){
-    const x=i/(arr.length-1)*w,y=dbY(arr[i],h);
+    const x=pathWidth*i/(arr.length-1),y=dbY(arr[i],h);
     if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
   }
-  if(fill){
-    ctx.lineTo(w,h/2);ctx.lineTo(0,h/2);ctx.closePath();
-    const grad=ctx.createLinearGradient(0,0,0,h);
-    grad.addColorStop(0,"rgba(69,199,218,.15)");
-    grad.addColorStop(.5,"rgba(69,199,218,.035)");
-    grad.addColorStop(1,"rgba(69,199,218,.09)");
-    ctx.fillStyle=grad;ctx.fill();
-  }
-  ctx.beginPath();
-  for(let i=0;i<arr.length;i++){
-    const x=i/(arr.length-1)*w,y=dbY(arr[i],h);
-    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-  }
-  ctx.strokeStyle=color;ctx.lineWidth=lineWidth;ctx.globalAlpha=alpha;
-  ctx.lineJoin="round";ctx.stroke();ctx.globalAlpha=1;
+  return true;
 };
-const drawSpectrum=(values,color,fill)=>{
+const drawResponse=()=>{
+  const arr=curves.l;
+  if(!arr?.length||arr.length<2)return;
+  const baseline=h*.5,pw=plotWidth(w);
+  // Boost and attenuation each get an independently clipped fill.
+  // The underlying music spectrum remains visible through both layers.
+  const fillHalf=(upper)=>{
+    ctx.save();
+    ctx.beginPath();
+    if(upper){ctx.moveTo(0,0);ctx.lineTo(pw,0);ctx.lineTo(pw,baseline);ctx.lineTo(0,baseline);}
+    else {ctx.moveTo(0,baseline);ctx.lineTo(pw,baseline);ctx.lineTo(pw,h);ctx.lineTo(0,h);}
+    ctx.closePath();ctx.clip();
+    if(responsePath(arr)){
+      ctx.lineTo(pw,baseline);ctx.lineTo(0,baseline);ctx.closePath();
+      const grad=ctx.createLinearGradient(0,upper?0:baseline,0,upper?baseline:h);
+      if(upper){
+        grad.addColorStop(0,"rgba(102,218,123,.24)");
+        grad.addColorStop(1,"rgba(64,185,103,.06)");
+      }else{
+        grad.addColorStop(0,"rgba(171,120,59,.13)");
+        grad.addColorStop(1,"rgba(160,79,79,.23)");
+      }
+      ctx.fillStyle=grad;ctx.fill();
+    }
+    ctx.restore();
+  };
+  fillHalf(true);fillHalf(false);
+  ctx.lineWidth=2.1;ctx.strokeStyle="#f0cc6b";ctx.lineJoin="round";
+  ctx.shadowBlur=3;ctx.shadowColor="#ecb84f69";
+  if(responsePath(arr))ctx.stroke();
+  ctx.shadowBlur=0;
+  const differ=curves.l?.length===curves.r?.length &&
+      curves.l?.some((v,i)=>Math.abs(v-curves.r[i])>.15);
+  if(differ){
+    ctx.strokeStyle="#75d7d7";ctx.lineWidth=1.2;
+    if(responsePath(curves.r))ctx.stroke();
+  }
+};
+const drawSelectedBand=()=>{
+  if(selected<0||!bands[selected]?.enabled||!curves.band?.length)return;
+  if(responsePath(curves.band)){
+    ctx.strokeStyle=col(selected);ctx.globalAlpha=.78;
+    ctx.lineWidth=1.2;ctx.stroke();ctx.globalAlpha=1;
+  }
+};
+const drawSpectrum=values=>{
   if(!values?.length)return;
-  const floor=-104,ceil=-14;
+  const floor=-104,ceil=-14,pw=plotWidth(w);
   ctx.beginPath();
   for(let i=0;i<values.length;i++){
-    const f=F0*Math.pow(F1/F0,i/Math.max(1,values.length-1));
-    const x=hzX(f,w), v=clamp((values[i]-floor)/(ceil-floor),0,1);
-    // The analyzer dB mapping is independent from EQ gain axis.
-    const y=h-(v*v*.83)*h;
-    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    const x=pw*i/(values.length-1),level=clamp((values[i]-floor)/(ceil-floor),0,1);
+    const y=h-level*level*h*.86;
+    if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y);
   }
-  if(fill){
-    ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();
-    const grad=ctx.createLinearGradient(0,0,0,h);
-    grad.addColorStop(0,"rgba(90,196,163,.18)");
-    grad.addColorStop(1,"rgba(66,134,117,.012)");
-    ctx.fillStyle=grad;ctx.fill();
-  }else{
-    ctx.strokeStyle=color;ctx.lineWidth=.85;ctx.globalAlpha=.5;ctx.stroke();ctx.globalAlpha=1;
-  }
+  ctx.lineTo(pw,h);ctx.lineTo(0,h);ctx.closePath();
+  const grad=ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,"rgba(108,173,126,.19)");
+  grad.addColorStop(1,"rgba(64,133,100,.005)");
+  ctx.fillStyle=grad;ctx.fill();
 };
 const draw=()=>{
   if(w<2||h<2)return;
+  const pw=plotWidth(w);
   ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle="#181820";ctx.fillRect(0,0,w,h);
-  const bg=ctx.createLinearGradient(0,0,0,h);
-  bg.addColorStop(0,"rgba(29,34,43,.34)");
-  bg.addColorStop(1,"rgba(7,14,21,.53)");
-  ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+  ctx.fillStyle="#17151c";ctx.fillRect(0,0,w,h);
+  const ground=ctx.createLinearGradient(0,0,0,h);
+  ground.addColorStop(0,"#211d27");ground.addColorStop(.55,"#1d1b22");ground.addColorStop(1,"#151a24");
+  ctx.fillStyle=ground;ctx.fillRect(0,0,pw,h);
+  ctx.fillStyle="#0f141c";ctx.fillRect(pw,0,w-pw,h);
   ctx.font="10px Consolas,monospace";
-  for(const f of [20,30,40,50,70,100,200,300,500,700,1000,2000,3000,5000,7000,10000,20000]){
-    const x=hzX(f,w);
-    ctx.strokeStyle=[20,100,1000,10000].includes(f)?"#38414b":"#293039";
-    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.lineWidth=.65;ctx.stroke();
-    if([30,50,100,200,500,1000,2000,5000,10000].includes(f)){
-      ctx.textAlign="center";ctx.fillStyle="#8d9ca9";ctx.fillText(formatHz(f),x,h-9);
+  for(const hz of [20,30,40,50,70,100,200,300,500,700,1000,2000,3000,5000,7000,10000,20000]){
+    const x=hzX(hz,w);
+    const major=[20,100,1000,10000].includes(hz);
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);
+    ctx.lineWidth=major?.9:.5;ctx.strokeStyle=major?"#403a46":"#302d36";ctx.stroke();
+    if([30,50,100,200,500,1000,2000,5000,10000,20000].includes(hz)){
+      ctx.textAlign="center";ctx.fillStyle="#98919e";
+      ctx.fillText(formatHz(hz),clamp(x,18,pw-18),h-8);
     }
   }
-  for(let db=-18;db<=18;db+=6){
-    const y=dbY(db,h);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);
-    ctx.lineWidth=db===0?1.3:.65;
-    ctx.strokeStyle=db===0?"#a28347":"#30353d";ctx.stroke();
-    ctx.fillStyle=db===0?"#f0c76b":"#93a0ad";ctx.textAlign="right";
-    ctx.fillText((db>0?"+":"")+db,w-8,clamp(y-7,22,h-22));
+  const tickStep=rangeDb<=15?3:6;
+  for(let db=-rangeDb;db<=rangeDb;db+=tickStep){
+    const y=dbY(db,h);
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(pw,y);
+    ctx.lineWidth=db===0?1.25:.65;
+    ctx.strokeStyle=db===0?"#987b4b":"#37313b";ctx.stroke();
+    ctx.textAlign="right";ctx.font="10px Consolas,monospace";
+    ctx.fillStyle=db===0?"#f0c86d":"#a9a0a8";
+    ctx.fillText((db>0?"+":"")+db,pw-6,clamp(y-6,28,h-22));
   }
-  if(showSpectrum){drawSpectrum(spec.post,"#71cfb3",true);drawSpectrum(spec.pre,"#7897ab",false);}
-  if(selected>=0&&bands[selected]?.enabled&&curves.band?.length){
-    drawSmooth(curves.band,col(selected),1.3,true,.55);
+  // Independent spectrum scale in a discrete right-side rail.
+  ctx.beginPath();ctx.moveTo(pw+.5,0);ctx.lineTo(pw+.5,h);
+  ctx.strokeStyle="#4a444d";ctx.stroke();
+  ctx.textAlign="right";ctx.font="9px Consolas,monospace";
+  for(let level=-20;level>=-100;level-=20){
+    const y=clamp(h*(level+108)/108,0,h-6);
+    ctx.fillStyle="#777d89";ctx.fillText(String(level),w-5,h-y-2);
   }
-  drawSmooth(curves.l,"#70e9d0",2.0,true,.98);
-  // Only show two channel response lines when they differ materially.
-  const distinct=curves.l?.length===curves.r?.length&&curves.l?.some((v,i)=>Math.abs(v-curves.r[i])>.12);
-  if(distinct)drawSmooth(curves.r,"#f1bf74",1.3,false,.87);
-  // The physical crossfeed curve is hidden to avoid a misleading -108dB line.
-  for(let i=0;i<MAX;i++){
+  if(showSpectrum){
+    ctx.globalAlpha=.75;drawSpectrum(spec.post);ctx.globalAlpha=.55;
+    if(spec.pre?.length){ // input is intentionally a faint line, never a second opaque fill
+      ctx.beginPath();
+      for(let i=0;i<spec.pre.length;i++){
+        const x=pw*i/(spec.pre.length-1);
+        const lv=clamp((spec.pre[i]+104)/90,0,1);
+        const y=h-lv*lv*h*.86;
+        if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.lineWidth=.8;ctx.strokeStyle="#a2a2b6";ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+  }
+  drawSelectedBand();
+  drawResponse();
+  for(let i=0;i<MAX;++i){
     const b=bands[i];if(!b.enabled)continue;
     const x=hzX(b.freq,w),y=dbY(isCut(b.type)?0:b.gain,h);
+    const focus=selected===i||hovered===i;
     ctx.save();
-    const on=selected===i||hovered===i;
-    ctx.shadowBlur=on?15:6;ctx.shadowColor=col(i);
-    ctx.fillStyle=col(i);ctx.beginPath();ctx.arc(x,y,on?6.5:5.5,0,Math.PI*2);ctx.fill();
-    ctx.shadowBlur=0;ctx.lineWidth=on?1.5:1;
-    ctx.strokeStyle=on?"#f8fbff":"#1d242d";
-    ctx.beginPath();ctx.arc(x,y,on?9:7.5,0,Math.PI*2);ctx.stroke();
-    // Color identifies the band; numbers belong in its floating inspector.
-    if(on){
-      ctx.font="10px Consolas,monospace";ctx.textAlign="center";
-      ctx.fillStyle="#e9f5fa";ctx.fillText(String(i+1),x,y-13);
+    ctx.shadowBlur=focus?9:3;ctx.shadowColor=col(i);
+    ctx.beginPath();ctx.arc(x,y,focus?6.2:5.4,0,Math.PI*2);
+    ctx.fillStyle=col(i);ctx.fill();
+    ctx.shadowBlur=0;ctx.lineWidth=focus?2:1.5;
+    ctx.strokeStyle="#e7e3df";ctx.stroke();
+    ctx.beginPath();ctx.arc(x,y,focus?8.8:7.3,0,Math.PI*2);
+    ctx.strokeStyle=focus?"#e9e6df91":"#ffffff20";ctx.lineWidth=.9;ctx.stroke();
+    if(focus){
+      ctx.textAlign="center";ctx.font="10px Consolas,monospace";
+      ctx.fillStyle="#f0ece8";ctx.fillText(String(i+1),x,Math.max(19,y-16));
     }
     ctx.restore();
   }
@@ -227,7 +267,7 @@ const resize=()=>{
   dpr=Math.min(2,window.devicePixelRatio||1);
   const cw=Math.max(1,Math.round(w*dpr)),ch=Math.max(1,Math.round(h*dpr));
   if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
-  if(oldW!==w||oldH!==h){positionInspector();changed();}
+  if(oldW!==w||oldH!==h)changed();
 };
 new ResizeObserver(resize).observe(wrap);
 window.addEventListener("resize",resize);
@@ -240,7 +280,12 @@ function applyHostState(data){
     q:clamp(Number(b.q)||1,.1,24),slope:clamp(b.slope|0,0,3)
   }));
   if(dragging){ const b=bands[dragging.id];if(b){b.freq=dragging.freq;b.gain=dragging.gain;} }
-  if(data.curve){curves=data.curve;}
+  if(data.curve)curves=data.curve;
+  // Match Pro-EQ style 12 dB default range, but expand if actual host gain
+  // exceeds 12 dB so handles/response are never silently clipped.
+  const peak=Math.max(0,...bands.filter(b=>b.enabled).map(b=>Math.abs(b.gain)),
+    ...(curves.l||[]).map(Math.abs),...(curves.r||[]).map(Math.abs));
+  rangeDb=clamp(Math.ceil((peak+1)/3)*3,12,24);
   $("stateInfo").textContent="24 BANDS  /  "+(samplerate/1000).toFixed(1)+" kHz  /  ZERO LATENCY";
   $("bridgeStatus").textContent="NATIVE DSP CONNECTED";
   renderInspector();renderRail();changed();
@@ -363,7 +408,7 @@ const attachKnob=(id,field)=>{
   const hi=field==="freq"?20000:field==="gain"?24:24;
   let gesture=null;
   knob.addEventListener("pointerdown",e=>{
-    if(selected<0||e.button!==0)return;
+    if(selected<0||e.button!==0||(field==="gain"&&$("gainInput").disabled))return;
     e.preventDefault();
     gesture={pointer:e.pointerId,id:selected,startY:e.clientY,start:bands[selected][field]};
     knob.setPointerCapture(e.pointerId);

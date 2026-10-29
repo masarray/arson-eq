@@ -26,7 +26,7 @@ function element(id) {
 }
 const ctx={
   fillRect(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},fill(){},
-  arc(){},closePath(){},save(){},restore(){},fillText(){},setTransform(){},
+  arc(){},closePath(){},clip(){},save(){},restore(){},fillText(){},setTransform(){},
   createLinearGradient(){return{addColorStop(){}};}
 };
 const document={activeElement:null,
@@ -59,10 +59,11 @@ handlers["eq-state"]({bands,rate:48000,curve:{l:curve,r:curve,cross:curve,band:c
 assert.ok(element("bridgeStatus").textContent.includes("CONNECTED"),"UI becomes connected");
 assert.ok(element("bandCount").textContent.includes("1 / 24"),"host band snapshot reflected");
 handlers["eq-spectrum"]({pre:Array(224).fill(-80),post:Array(224).fill(-75)});
-element("eqCanvas").dispatch("pointerdown",{button:0,pointerId:1,clientX:452,clientY:133});
+element("eqCanvas").dispatch("pointerdown",{button:0,pointerId:1,clientX:431,clientY:100});
 assert.ok(find("begin").length,"host gesture starts on drag");
 assert.equal(element("inspector").hidden,false,"inspector appears only when a band is selected");
-assert.ok(element("inspector").style.left.endsWith("px"),"floating inspector positioned near selected node");
+assert.ok(!element("inspector").style.left,"inspector must never follow/cover graph nodes");
+assert.ok(element("inspector").hidden===false,"selected band creates non-obscuring dock");
 element("eqCanvas").dispatch("pointermove",{pointerId:1,clientX:500,clientY:170});
 element("eqCanvas").dispatch("pointerup",{pointerId:1});
 assert.ok(find("end").length,"host gesture ends after drag");
@@ -89,7 +90,19 @@ assert.equal(element("quickHelp").hidden,false,"help popover opens on demand");
 const markup=fs.readFileSync("WebUI/index.html","utf8");
 const style=fs.readFileSync("WebUI/style.css","utf8");
 assert.ok(markup.includes('class="graph-wrap"') && !markup.includes('<aside class="inspector"'),"no wasted right-hand sidebar");
-assert.ok(style.includes(".inspector{position:absolute"),"editor is an overlay in the graph");
+assert.ok(style.includes(".inspector{position:relative"),"inspector is a dedicated layout sibling, not an overlay");
+const inspectorPosition=markup.indexOf('id="inspector"');
+const graphClose=markup.indexOf('<!-- Context dock has its own layout space');
+assert.ok(inspectorPosition>graphClose && graphClose>markup.indexOf('id="quickHelp"'),
+  "band controls are after graph closing tag, never inside interactive plot");
+assert.ok(style.includes(".workspace{flex:1;min-height:0;display:flex;flex-direction:column"),
+  "dock stacks under graph without occlusion");
+assert.ok(style.includes("flex:0 0 143px"),"dock has bounded, predictable layout space");
 assert.ok(!style.includes("filter:brightness"),"no global hover GPU brightness filters");
 handlers["eq-state"]({bands,rate:48000,curve:{l:curve,r:curve,cross:curve,band:curve}});
-console.log("ArSonEQ WebUI smoke PASS: load, native events, spectrum, drag gestures, add band");
+// Check host-originated gain beyond 12 dB no longer silently clips nodes.
+const elevated=bands.map(x=>({...x}));
+elevated[0].gain=18;
+handlers["eq-state"]({bands:elevated,rate:48000,curve:{l:curve,r:curve,cross:curve,band:curve}});
+assert.ok(element("inspector").hidden,"host snapshots do not force the dock open");
+console.log("ArSonEQ M2.3 GUI smoke PASS: dock outside graph, host gestures, adaptive gain axis, spectrum gate");

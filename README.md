@@ -70,3 +70,10 @@ The Windows Release job **builds both** `ArSonEQ_VST3` and `ArSonEQ_Standalone` 
 - **Both**: use the same offline-embedded WebView2 interface and require Microsoft Edge WebView2 Runtime. To force the simpler native fallback UI, set `ARSONEQ_USE_NATIVE_GUI=1` in the environment *before* launching the EXE or DAW.
 
 A combined **Windows x64 engineering test ZIP** contains `VST3/`, `Standalone/`, `BUILD.txt` and `README_WINDOWS_TEST.txt`. Both formats compile in **one shared CI job** (pinned JUCE and WebView2 SDK, one CMake configure and native DSP tests). A build PASS does not prove soundcard support or host runtime behavior: physical ASIO/WASAPI audio checks, DAW recall, pluginval, GUI screenshot and CPU profiling remain separate release gates.
+
+
+## M2.3 GUI fix: unobstructed equalizer graph
+
+Based on real VSTHost side-by-side screenshots, the EQ's old floating editor was found to cover critical frequency response data. The band editor is now a compact, dedicated *bottom control deck*, physically outside the graph DOM. It cannot overlay the response curve at any band frequency/level. Selecting empty plot dismisses the controls and restores full graph height; selecting a filter displays its type/rotaries/numeric fields/slope/route/bypass. The plot features a warm-gold native EQ response with green boost shading, individual colored nodes, separate analyzer rail and automatically expanded dB range when needed. Both packaged formats (VST3 and native Standalone) use exactly the same assets; no C++ DSP/host parameter contract changed.
+
+The Linux fast CI job also generates a deterministic **browser screenshot** at 900×535 with a synthetic host fixture for visual layout inspection; this preview fixture is *not embedded* into end-user builds and must not be confused with the actual C++ audio response. Real VSTHost and ArSonMix comparison/DAW validation remains necessary.
