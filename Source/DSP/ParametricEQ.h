@@ -128,6 +128,7 @@ public:
             slot.current=slot.target=makeStages(slot.band,sampleRate_);
             slot.remaining=0;
             slot.active=slot.band.enabled;
+            slot.stages=configuredStages(slot.band);
         }
     }
     double sampleRate() const noexcept { return sampleRate_; }
@@ -143,6 +144,7 @@ public:
         auto& slot=slots_[static_cast<size_t>(index)];
         if (same(slot.band,value)) return false;
         slot.band=value;
+        slot.stages=std::max(slot.stages,configuredStages(value));
         slot.target=makeStages(value,sampleRate_);
         slot.remaining=std::max(1,static_cast<int>(std::ceil(sampleRate_*0.008)));
         slot.active=true; // keep processing during smooth disable transition
@@ -153,6 +155,7 @@ public:
             slot.state={};
             slot.current=slot.target=makeStages(slot.band,sampleRate_);
             slot.remaining=0;slot.active=slot.band.enabled;
+            slot.stages=configuredStages(slot.band);
         }
     }
     // Called once per stereo sample: no allocations, no transcendental math.
@@ -212,24 +215,36 @@ private:
         std::array<Coeff,kMaxStages> current{},target{};
         std::array<std::array<State,kMaxStages>,2> state{};
         int remaining=0;
+        int stages=0;
         bool active=false;
     };
+    static int configuredStages(const Band& b) noexcept {
+        if (!b.enabled) return 0;
+        return b.type==Type::LowCut || b.type==Type::HighCut ? stageCount(b.slope) : 1;
+    }
     static bool valid(int index) noexcept { return index>=0 && index<kMaxBands; }
     static void advance(Slot& s) noexcept {
         if (s.remaining<=0) return;
         const auto r=static_cast<double>(s.remaining);
-        for (int i=0;i<kMaxStages;++i) {
+        for (int i=0;i<s.stages;++i) {
             auto& c=s.current[static_cast<size_t>(i)];
             const auto& t=s.target[static_cast<size_t>(i)];
             c.b0+=(t.b0-c.b0)/r; c.b1+=(t.b1-c.b1)/r;
             c.b2+=(t.b2-c.b2)/r; c.a1+=(t.a1-c.a1)/r; c.a2+=(t.a2-c.a2)/r;
         }
         --s.remaining;
-        if (s.remaining==0 && !s.band.enabled) { s.active=false;s.state={}; }
+        if (s.remaining==0) {
+            const int next=configuredStages(s.band);
+            for (int lane=0;lane<2;++lane)
+                for(int i=next;i<s.stages;++i)
+                    s.state[static_cast<size_t>(lane)][static_cast<size_t>(i)]={};
+            s.stages=next;
+            if (!s.band.enabled) { s.active=false;s.state={}; }
+        }
     }
     static double filter(Slot& s, double input, int lane) noexcept {
         auto value=input;
-        for (int i=0;i<kMaxStages;++i) {
+        for (int i=0;i<s.stages;++i) {
             const auto& c=s.current[static_cast<size_t>(i)];
             auto& z=s.state[static_cast<size_t>(lane)][static_cast<size_t>(i)];
             const auto out=c.b0*value+z.z1;

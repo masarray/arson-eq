@@ -103,7 +103,7 @@ void ArSonEQAudioProcessor::getStateInformation(juce::MemoryBlock& destination) 
 }
 void ArSonEQAudioProcessor::setStateInformation(const void* data,int size) {
     if (auto xml=getXmlFromBinary(data,size)) {
-        if (xml->hasTagName(parameters.state.getType()))
+        if (xml->hasTagName(parameters.state.getType().toString()))
             parameters.replaceState(juce::ValueTree::fromXml(*xml));
     }
 }
