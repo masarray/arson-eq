@@ -7,7 +7,7 @@
 const $=id=>document.getElementById(id);
 const canvas=$("eqCanvas"), wrap=$("graphWrap"), ctx=canvas.getContext("2d",{alpha:false});
 const TYPES=["Bell","Low Shelf","High Shelf","Low Cut","High Cut","Notch"];
-const COLORS=["#ff936f","#ffd07a","#9fe37f","#57dcca","#63bde9","#b194fa","#ed98d9","#ef8eb4"];
+const COLORS=["#ff9473","#e5b855","#a99aff","#77d5a4","#53ccd2","#b58eea","#eb87a9","#78b6e9"];
 const F0=20,F1=20000,RANGE=18,MAX=24;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const hzX=(f,w)=>Math.log(clamp(f,F0,F1)/F0)/Math.log(F1/F0)*w;
@@ -38,6 +38,8 @@ const setParam=(id,field,value,gesture=true)=>{
 };
 const select=i=>{
   selected=(i>=0&&i<MAX)?i:-1;
+  $("bandList").hidden=true;
+  $("quickHelp").hidden=true;
   emit({kind:"select",id:selected});
   renderInspector();renderRail();changed();
 };
@@ -78,14 +80,28 @@ const renderRail=()=>{
     chip.onclick=()=>select(i);rail.appendChild(chip);
   }
 };
+const positionInspector=()=>{
+  if(selected<0||$("inspector").hidden)return;
+  const b=bands[selected],panel=$("inspector");
+  const pw=panel.offsetWidth||466,ph=panel.offsetHeight||174;
+  const x=hzX(b.freq,w),y=dbY(isCut(b.type)?0:b.gain,h);
+  const px=clamp(x-pw*.5,10,Math.max(10,w-pw-10));
+  const roomBelow=h-y-22,roomAbove=y-30;
+  let py=roomBelow>=ph+10?y+19:roomAbove>=ph+10?y-ph-19:h-ph-12;
+  py=clamp(py,33,Math.max(33,h-ph-12));
+  panel.style.left=Math.round(px)+"px";
+  panel.style.top=Math.round(py)+"px";
+};
 const renderInspector=()=>{
   const b=selected>=0?bands[selected]:null;
-  $("emptyInspector").hidden=!!b;$("bandInspector").hidden=!b;
-  $("activeLabel").textContent=b?"BAND "+String(selected+1).padStart(2,"0"):"NO SELECTION";
+  $("inspector").hidden=!b;
+  $("emptyInspector").hidden=true;
+  $("bandInspector").hidden=!b;
   if(!b)return;
-  $("bandTitle").textContent="Band "+String(selected+1).padStart(2,"0");
+  $("activeLabel").textContent=["STEREO","LEFT","RIGHT","MID","SIDE"][b.route]||"STEREO";
+  $("bandTitle").textContent="BAND "+String(selected+1).padStart(2,"0");
   $("bandDot").style.background=col(selected);
-  $("enableBtn").textContent=b.enabled?"● ACTIVE":"○ BYPASSED";
+  $("enableBtn").textContent=b.enabled?"● ON":"○ OFF";
   $("enableBtn").classList.toggle("off",!b.enabled);
   $("typeSelect").value=String(b.type);
   $("slopeSelect").value=String(b.slope);
@@ -96,7 +112,9 @@ const renderInspector=()=>{
   $("gainInput").disabled=isCut(b.type)||b.type===5;
   $("slopeSelect").disabled=!isCut(b.type);
   $("noteLabel").textContent=noteFor(b.freq);
-  $("routeGroup").querySelectorAll("button").forEach(btn=>btn.classList.toggle("active",Number(btn.dataset.route)===b.route));
+  $("routeGroup").querySelectorAll("button").forEach(btn=>
+    btn.classList.toggle("active",Number(btn.dataset.route)===b.route));
+  positionInspector();
 };
 const mapLocal=e=>{const r=canvas.getBoundingClientRect();return{x:clamp(e.clientX-r.left,0,r.width),y:clamp(e.clientY-r.top,0,r.height)};};
 const drawSmooth=(arr,color,lineWidth=2,fill=false,alpha=1)=>{
@@ -109,9 +127,9 @@ const drawSmooth=(arr,color,lineWidth=2,fill=false,alpha=1)=>{
   if(fill){
     ctx.lineTo(w,h/2);ctx.lineTo(0,h/2);ctx.closePath();
     const grad=ctx.createLinearGradient(0,0,0,h);
-    grad.addColorStop(0,"rgba(89,227,235,.24)");
-    grad.addColorStop(.5,"rgba(70,206,218,.07)");
-    grad.addColorStop(1,"rgba(68,199,212,.13)");
+    grad.addColorStop(0,"rgba(69,199,218,.15)");
+    grad.addColorStop(.5,"rgba(69,199,218,.035)");
+    grad.addColorStop(1,"rgba(69,199,218,.09)");
     ctx.fillStyle=grad;ctx.fill();
   }
   ctx.beginPath();
@@ -136,8 +154,8 @@ const drawSpectrum=(values,color,fill)=>{
   if(fill){
     ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();
     const grad=ctx.createLinearGradient(0,0,0,h);
-    grad.addColorStop(0,"rgba(81,187,157,.25)");
-    grad.addColorStop(1,"rgba(45,133,122,.02)");
+    grad.addColorStop(0,"rgba(90,196,163,.18)");
+    grad.addColorStop(1,"rgba(66,134,117,.012)");
     ctx.fillStyle=grad;ctx.fill();
   }else{
     ctx.strokeStyle=color;ctx.lineWidth=.85;ctx.globalAlpha=.5;ctx.stroke();ctx.globalAlpha=1;
@@ -146,44 +164,51 @@ const drawSpectrum=(values,color,fill)=>{
 const draw=()=>{
   if(w<2||h<2)return;
   ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle="#101a27";ctx.fillRect(0,0,w,h);
+  ctx.fillStyle="#181820";ctx.fillRect(0,0,w,h);
   const bg=ctx.createLinearGradient(0,0,0,h);
-  bg.addColorStop(0,"rgba(23,41,55,.28)");bg.addColorStop(1,"rgba(7,13,23,.45)");
+  bg.addColorStop(0,"rgba(29,34,43,.34)");
+  bg.addColorStop(1,"rgba(7,14,21,.53)");
   ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
   ctx.font="10px Consolas,monospace";
   for(const f of [20,30,40,50,70,100,200,300,500,700,1000,2000,3000,5000,7000,10000,20000]){
     const x=hzX(f,w);
-    ctx.strokeStyle=[20,100,1000,10000].includes(f)?"#314150":"#25313e";
+    ctx.strokeStyle=[20,100,1000,10000].includes(f)?"#38414b":"#293039";
     ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.lineWidth=.65;ctx.stroke();
     if([30,50,100,200,500,1000,2000,5000,10000].includes(f)){
-      ctx.textAlign="center";ctx.fillStyle="#8297a9";ctx.fillText(formatHz(f),x,h-8);
+      ctx.textAlign="center";ctx.fillStyle="#8d9ca9";ctx.fillText(formatHz(f),x,h-9);
     }
   }
   for(let db=-18;db<=18;db+=6){
     const y=dbY(db,h);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);
-    ctx.lineWidth=db===0?1.15:.7;ctx.strokeStyle=db===0?"#607383":"#2b3a48";ctx.stroke();
-    ctx.fillStyle="#7990a2";ctx.textAlign="right";
-    ctx.fillText((db>0?"+":"")+db+" dB",w-10,clamp(y-7,11,h-20));
+    ctx.lineWidth=db===0?1.3:.65;
+    ctx.strokeStyle=db===0?"#a28347":"#30353d";ctx.stroke();
+    ctx.fillStyle=db===0?"#f0c76b":"#93a0ad";ctx.textAlign="right";
+    ctx.fillText((db>0?"+":"")+db,w-8,clamp(y-7,22,h-22));
   }
   if(showSpectrum){drawSpectrum(spec.post,"#71cfb3",true);drawSpectrum(spec.pre,"#7897ab",false);}
   if(selected>=0&&bands[selected]?.enabled&&curves.band?.length){
     drawSmooth(curves.band,col(selected),1.3,true,.55);
   }
-  drawSmooth(curves.l,"#65e8f3",2.5,true,1);
-  drawSmooth(curves.r,"#f5ca80",1.05,false,.73);
+  drawSmooth(curves.l,"#70e9d0",2.0,true,.98);
+  // Only show two channel response lines when they differ materially.
+  const distinct=curves.l?.length===curves.r?.length&&curves.l?.some((v,i)=>Math.abs(v-curves.r[i])>.12);
+  if(distinct)drawSmooth(curves.r,"#f1bf74",1.3,false,.87);
   // The physical crossfeed curve is hidden to avoid a misleading -108dB line.
   for(let i=0;i<MAX;i++){
     const b=bands[i];if(!b.enabled)continue;
     const x=hzX(b.freq,w),y=dbY(isCut(b.type)?0:b.gain,h);
     ctx.save();
     const on=selected===i||hovered===i;
-    ctx.shadowBlur=on?19:7;ctx.shadowColor=col(i);
-    ctx.fillStyle=col(i);ctx.beginPath();ctx.arc(x,y,on?7:5.7,0,Math.PI*2);ctx.fill();
-    ctx.shadowBlur=0;
-    ctx.lineWidth=on?2:1;ctx.strokeStyle=on?"#f4fbff":"#162637";
-    ctx.beginPath();ctx.arc(x,y,on?10:7.5,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle="#07131e";ctx.font="bold 9px Consolas,monospace";ctx.textAlign="center";
-    ctx.fillText(String(i+1),x,y+3);
+    ctx.shadowBlur=on?15:6;ctx.shadowColor=col(i);
+    ctx.fillStyle=col(i);ctx.beginPath();ctx.arc(x,y,on?6.5:5.5,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.lineWidth=on?1.5:1;
+    ctx.strokeStyle=on?"#f8fbff":"#1d242d";
+    ctx.beginPath();ctx.arc(x,y,on?9:7.5,0,Math.PI*2);ctx.stroke();
+    // Color identifies the band; numbers belong in its floating inspector.
+    if(on){
+      ctx.font="10px Consolas,monospace";ctx.textAlign="center";
+      ctx.fillStyle="#e9f5fa";ctx.fillText(String(i+1),x,y-13);
+    }
     ctx.restore();
   }
   ctx.restore();
@@ -194,7 +219,7 @@ const resize=()=>{
   dpr=Math.min(2,window.devicePixelRatio||1);
   const cw=Math.max(1,Math.round(w*dpr)),ch=Math.max(1,Math.round(h*dpr));
   if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
-  if(oldW!==w||oldH!==h)changed();
+  if(oldW!==w||oldH!==h){positionInspector();changed();}
 };
 new ResizeObserver(resize).observe(wrap);
 window.addEventListener("resize",resize);
@@ -209,7 +234,7 @@ function applyHostState(data){
   if(dragging){ const b=bands[dragging.id];if(b){b.freq=dragging.freq;b.gain=dragging.gain;} }
   if(data.curve){curves=data.curve;}
   $("stateInfo").textContent="24 BANDS  /  "+(samplerate/1000).toFixed(1)+" kHz  /  ZERO LATENCY";
-  $("bridgeStatus").innerHTML='<i class="connection ready"></i> NATIVE DSP CONNECTED';
+  $("bridgeStatus").textContent="NATIVE DSP CONNECTED";
   renderInspector();renderRail();changed();
 }
 function applySpectrum(data){
@@ -310,9 +335,20 @@ $("routeGroup").addEventListener("click",e=>{
   if(selected>=0&&btn)setParam(selected,"route",Number(btn.dataset.route));
 });
 $("viewBtn").onclick=()=>{
-  showSpectrum=!showSpectrum;$("spectrumStatus").textContent=showSpectrum?"ON":"OFF";changed();
+  showSpectrum=!showSpectrum;
+  $("spectrumStatus").textContent=showSpectrum?"ON":"OFF";
+  $("viewBtn").classList.toggle("active",showSpectrum);
+  changed();
 };
-$("helpBtn").onclick=()=>$("quickHelp").scrollIntoView({behavior:"smooth",block:"nearest"});
+$("bandsBtn").onclick=()=>{
+  $("quickHelp").hidden=true;
+  $("bandList").hidden=!$("bandList").hidden;
+};
+$("helpBtn").onclick=()=>{
+  $("bandList").hidden=true;
+  $("quickHelp").hidden=!$("quickHelp").hidden;
+};
+$("closeInspector").onclick=()=>select(-1);
 window.addEventListener("keydown",e=>{
   if(e.target.matches("input,select"))return;
   if((e.key==="Delete"||e.key==="Backspace")&&selected>=0){

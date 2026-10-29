@@ -48,3 +48,10 @@ Source `WebUI/` is deliberately tiny and zero-dependency. Run `node --check WebU
 ### Windows fallback
 
 Set environment variable `ARSONEQ_USE_NATIVE_GUI=1` before launching your DAW to force the original JUCE native editor if WebView2 is unsupported or fails in the host. Restart the host to make it take effect. The embedded JS is not an audio dependency; DSP processing remains available without any GUI.
+
+
+## M2.1 — Compact premium editor
+
+Based on user-provided screenshots comparing Pro-Q 3, ArSonMix and ArSonEQ, the first WebView2 UI was redesigned around a **full-width EQ graph**. Initial WebView2 editor size is **900 × 535** (host title bar excluded), resizable from 760 × 455. Selected nodes open a small movable-by-anchor floating filter popup rather than occupying a permanent empty 294px sidebar. The top/bottom rails are compact, frequencies and dB labels remain visible in the graph, and the active-band list is available from the BANDS button. The materials follow ArSonMix's dark glass workspace / aluminum control / turquoise status language without copying third-party graphical assets. A no-network, no-React JavaScript/Canvas editor is still bundled into the VST3.
+
+Controls: single-click a node to select and open floating controls; click empty canvas to dismiss; double-click to add/delete; drag Hz/dB; wheel to change Q/slope; click BANDS for other active bands, ? for concise help. The existing native fallback and DAW automation parameters are preserved. Native host visual QA, memory/CPU data and pluginval remain necessary before calling the GUI production-ready.

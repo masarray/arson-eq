@@ -43,3 +43,12 @@ All contributors and parallel ChatGPT threads must read PRD + ARD + this file **
 - [ ] Production GUI enhancements: coherent undo/redo and A/B, spectral analyzer calibration, keyboard navigation, touch ergonomics, peak-hold; then Dynamic EQ engine work.
 
 Do not mark M2 DAW-validated based solely on the Windows compilation or mock-DOM smoke check.
+
+
+### M2.1 — GUI layout and material corrections
+- [x] Remove permanent right inspector panel and oversized empty placeholder; graph takes full width.
+- [x] Introduce selection-following floating inspector, bounded above/below nodes, with existing host controls.
+- [x] Default Windows WebView2 editor 900×535, resize limits 760×455 to 1360×850; avoid graph clipping.
+- [x] Apply ArSonMix metal/glass/cyan semantics with restrained FabFilter-style 0 dB baseline and editable nodes.
+- [x] Add layout smoke assertions for disappearing inspector, popover mutual exclusion, and no permanent sidebar.
+- [ ] Confirm visual geometry in a real VST3 host at 100% and 150% Windows scaling; capture screenshot review and idle WebView2 memory/CPU.

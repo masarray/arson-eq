@@ -74,7 +74,8 @@ ArSonEQWebEditor::ArSonEQWebEditor(ArSonEQAudioProcessor& p)
     };
     addAndMakeVisible(browser_);
     setResizable(true,true);
-    setResizeLimits(820,490,1680,1000);
+    // Full-canvas EQ fits a normal DAW floating plugin window (~Pro-Q aspect).
+    setResizeLimits(760,455,1360,850);
     graphEngine_.prepare(p.configuredSampleRate());
     window_.fill(0.0f);
     for(int i=0;i<fftSize_;++i)
@@ -82,7 +83,7 @@ ArSonEQWebEditor::ArSonEQWebEditor(ArSonEQAudioProcessor& p)
             std::cos(2.0f*juce::MathConstants<float>::pi*i/(fftSize_-1)));
     levelsPre_.fill(-108.f);
     levelsPost_.fill(-108.f);
-    setSize(1110,680);
+    setSize(900,535);
     processor_.analyzer().setEnabled(true);
     browser_.goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
     startTimerHz(25);

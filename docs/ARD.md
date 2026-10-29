@@ -111,3 +111,15 @@ CI efficiency: one small Linux headless job and one Windows VST3 job that also r
 **CI**: Javascript syntax + no-dependency mock-DOM smoke on Linux; Windows build checks pinned WebView2 SDK headers/loader and embeds the assets into the VST3 artifact. Use a cached pinned NuGet SDK and retain native DSP test suites. Real DAW/WebView2 runtime inspection remains a gate.
 
 **Compatibility**: Never change existing host parameter IDs, plug-in ID, manufacturer ID, plugin binary format, state schema or audio process methods just to support GUI redesign. Native editor must remain available as a recovery path. If runtime initialization fails after CMake-supported capability probe, report failure and improve fallback rather than claiming success.
+
+
+## M2.1 Visual hierarchy correction — reference images and ArSonMix design system (2026-10-29)
+User supplied side-by-side screenshots: Pro-Q 3 (902×572), ArSonMix mixer (1652×962), old ArSonEQ (1112×712). Audit shows wasted right inspector column, 1110×680 editor default, chart truncated by minimum CSS geometry, redundant header/footer text, and overlarge always-on panels.
+
+**Canonical UX**: The graph is the main work area (full width); only a narrow 43px top chrome and 29px bottom status bar remain. Selected bands summon a 466px floating inspector adjacent to the selected node; the box prefers below if space permits, otherwise above, clamped inside graph bounds. No inspector exists when selection is empty. All 24 active bands remain available through the graph or optional BANDS popover. A fixed 900×535 JUCE initial editor size fits ordinary floating host windows. User may resize from 760×455 to 1360×850, and the floating inspector stays within graph bounds.
+
+**Visual tokens**: Derive from ArSonMix's documented `design-references/brushed-metal-v1.0/reference.json`: metallic/aluminum controls, blue-black glass in the FX workspace, turquoise status and contextual channel colors. Retain high contrast, compact controls with 1px beveled borders and no high-cost hover filters, blur or animation. Use Pro-Q's high-level placement concept only, not FabFilter artwork/trademarks/assets.
+
+**Rendering**: Always draw full graph, subtle log-frequency grid, warm 0dB baseline, restrained 2px curve, thin R line only when different from L, per-band colored draggable nodes and optional FFT layer. No React runtime and no constant idle redraw. Canvas changes remain event/telemetry driven and are capped at device DPR=2. No changes to the audio callback, native DSP or stable host parameters. WebView2 is still a browser process; memory/idle-paint tests remain required.
+
+**Acceptance**: JavaScript smoke checks selected inspector visibility, floating position, no sidebar, menus and native gestures; Windows JUCE/WebView2 VST3 release build required; actual DAW screenshot/re-open/multi-instance test and CPU/RAM profiling remain release gates.
