@@ -93,3 +93,15 @@ Do not mark M2 DAW-validated based solely on the Windows compilation or mock-DOM
 **M5 (P3):** reference matching, external/instance spectra, EQ Match, surround and full ecosystem.
 
 Do not declare commercial feature parity until these independent criteria are met. Pro-Q 3's 9 shapes, range and modes must not be represented by renaming the existing 6 RBJ filters. See `docs/PROQ3_GAP_AUDIT_AND_M24_PLAN_20261030.md`.
+
+
+### M2.4 implementation checkpoint (2026-10-30)
+- [x] Four-channel PCM telemetry replaces mono `(L+R)*0.5`; dual-mono fallback for mono.
+- [x] Native UI-side FFT orders 10–13 (1024 to 8192), Hann window and normalized stereo spectral energy.
+- [x] 384 logarithmic interpolated power bins; per-point elapsed-time attack/release; default 4.5 dB/oct visual-only tilt.
+- [x] User-selectable FFT speed/range/tilt, Pre/Post/Freeze, two-channel output sample peak visualization.
+- [x] Quick deck compact <=70px with advanced disclosure; 900×535 reference chart >=390px.
+- [x] DSP SPSC/anti-phase math tests and JS analyzer/pointer smoke tests staged.
+- [ ] Confirm Windows VST3 + Standalone compiled from same SHA; real GUI screenshots and instrument QA.
+- [ ] Native full signal calibration 50Hz/1k/10k for 44.1/48/96k and CPU/RAM/multiple instances; remains required.
+- [ ] Preserve user analyzer settings across host reopen if needed; currently editor session settings.

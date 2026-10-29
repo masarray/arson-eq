@@ -7,7 +7,7 @@
 <header class="top">
   <div class="brand"><span class="brand-glyph">A<span>◢</span></span><div class="brand-name">ArSon<span>EQ</span></div><span class="brand-separator"></span><span class="brand-caption">PARAMETRIC EQ</span></div>
   <div class="preset-center"><span class="preset-arrows">‹</span><span id="stateInfo">24 BANDS · ZERO LATENCY</span><span class="preset-arrows">›</span></div>
-  <div class="top-actions"><button id="bandsBtn" class="bar-button" type="button" title="Active band list">BANDS <b id="bandCount">0 / 24</b></button><button id="viewBtn" class="bar-button active" type="button" title="Toggle live spectrum">ANALYZER <span id="spectrumStatus">ON</span></button><button id="helpBtn" class="help-button" type="button" title="Mouse and keyboard controls">?</button></div>
+  <div class="top-actions"><button id="bandsBtn" class="bar-button" type="button" title="Active band list">BANDS <b id="bandCount">0 / 24</b></button><button id="viewBtn" class="bar-button active" type="button" title="Toggle live spectrum">ANALYZER <span id="spectrumStatus">ON</span></button><button id="analyzerMenuBtn" class="bar-button" type="button" title="FFT resolution, smoothing, display tilt and freeze">FFT ⚙</button><button id="helpBtn" class="help-button" type="button" title="Mouse and keyboard controls">?</button></div>
 </header>
 <main class="workspace">
   <div class="graph-wrap" id="graphWrap">
@@ -19,12 +19,27 @@
     </div>
     <div class="axis-hint">dB</div>
     <div class="band-list" id="bandList" hidden><div class="popup-head">ACTIVE BANDS <span>CLICK TO SELECT</span></div><div id="bandRail" class="band-rail"></div></div>
+    <div id="analyzerMenu" class="analyzer-menu" hidden>
+      <div class="analyzer-title">SPECTRUM ANALYZER <span>Native FFT · display only</span></div>
+      <div class="analyzer-options">
+        <label>FFT RESOLUTION<select id="fftSelect"><option value="10">1024 · FAST</option><option value="11">2048</option><option value="12" selected>4096 · HIGH</option><option value="13">8192 · MAX</option></select></label>
+        <label>SPEED<select id="speedSelect"><option value="0">FAST</option><option value="1" selected>MEDIUM</option><option value="2">SLOW</option></select></label>
+        <label>DISPLAY TILT<select id="tiltSelect"><option value="0">FLAT · 0 dB/oct</option><option value="3">3 dB/oct</option><option value="4.5" selected>4.5 dB/oct</option><option value="6">6 dB/oct</option></select></label>
+        <label>LEVEL RANGE<select id="rangeSelect"><option value="60">60 dB</option><option value="90" selected>90 dB</option><option value="120">120 dB</option></select></label>
+      </div>
+      <div class="analyzer-switches">
+        <label><input type="checkbox" id="showPre" checked> INPUT</label>
+        <label><input type="checkbox" id="showPost" checked> OUTPUT</label>
+        <label><input type="checkbox" id="freezeSpectrum"> FREEZE</label>
+      </div>
+      <small>FFT/tilt changes visualization only · audio latency stays zero</small>
+    </div>
     <div id="quickHelp" class="quick-help" hidden><b>EQ CONTROLS</b><p>Double-click empty graph: add filter</p><p>Double-click node / Delete: remove</p><p>Drag node: Hz + dB</p><p>Wheel on node: Q / cut slope</p><p>Click node: edit filter</p></div>
   </div>
   <!-- Context dock has its own layout space: graph, nodes and labels never sit underneath it. -->
     <div class="inspector" id="inspector" hidden role="region" aria-label="Selected filter controls">
       <div class="inspector-top"><div class="identity"><i id="bandDot"></i><span id="bandTitle">BAND 01</span><span id="activeLabel" class="channel-badge">BAND</span></div>
-        <div class="inspector-actions"><button id="enableBtn" type="button" title="Enable / bypass filter">ON</button><button id="removeBtn" type="button" title="Delete band">×</button><button id="closeInspector" type="button" title="Close inspector">▾</button></div>
+        <div class="inspector-actions"><button id="enableBtn" type="button" title="Enable / bypass filter">ON</button><button id="advancedBtn" type="button" title="Expand advanced band controls" aria-expanded="false">MORE ▾</button><button id="removeBtn" type="button" title="Delete band">×</button><button id="closeInspector" type="button" title="Close inspector">▾</button></div>
       </div>
       <div id="emptyInspector" hidden></div>
       <div id="bandInspector" class="band-inspector" hidden>

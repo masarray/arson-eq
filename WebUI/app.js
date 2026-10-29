@@ -8,7 +8,7 @@ const $=id=>document.getElementById(id);
 const canvas=$("eqCanvas"), wrap=$("graphWrap"), ctx=canvas.getContext("2d",{alpha:false});
 const TYPES=["Bell","Low Shelf","High Shelf","Low Cut","High Cut","Notch"];
 const COLORS=["#ff9473","#e5b855","#a99aff","#77d5a4","#53ccd2","#b58eea","#eb87a9","#78b6e9"];
-const F0=20,F1=20000,MAX=24,RIGHT_RAIL=40;
+const F0=20,F1=20000,MAX=24,RIGHT_RAIL=63;
 let rangeDb=12;
 const plotWidth=width=>Math.max(1,width-RIGHT_RAIL);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
@@ -21,7 +21,7 @@ const isFiniteNumber=n=>typeof n==="number"&&Number.isFinite(n);
 const noteFor=hz=>{if(!isFiniteNumber(hz)||hz<=0)return "—";const midi=Math.round(69+12*Math.log2(hz/440));return ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"][(midi+1200)%12]+(Math.floor(midi/12)-1);};
 const backend=window.__JUCE__?.backend;
 let bands=Array.from({length:MAX},(_,i)=>({id:i,enabled:false,type:0,route:0,freq:1000,gain:0,q:1,slope:0}));
-let curves={l:[],r:[],cross:[],band:[]},spec={pre:[],post:[]},samplerate=48000;
+let curves={l:[],r:[],cross:[],band:[]},spec={pre:[],post:[],range:90,peakL:0,peakR:0,preVisible:true,postVisible:true},samplerate=48000;
 let selected=-1,hovered=-1,showSpectrum=true,dragging=null,pendingDrag=null,lastValidPick=null;
 let w=1,h=1,dpr=1,dirty=false,connected=false,hasSpectrum=false;
 const emit=payload=>{if(backend?.emitEvent)backend.emitEvent("eq-command",payload);};
@@ -172,20 +172,51 @@ const drawSelectedBand=()=>{
     ctx.lineWidth=1.2;ctx.stroke();ctx.globalAlpha=1;
   }
 };
-const drawSpectrum=values=>{
-  if(!values?.length)return;
-  const floor=-104,ceil=-14,pw=plotWidth(w);
+// Spectrum values are real C++ FFT dBFS with visualization-only tilt.
+const spectrumY=value=>{
+  const range=spec.range===60||spec.range===120?spec.range:90;
+  return h*(1-clamp(value/range+1,0,1));
+};
+const spectrumPath=values=>{
+  if(!values?.length)return false;
   ctx.beginPath();
-  for(let i=0;i<values.length;i++){
-    const x=pw*i/(values.length-1),level=clamp((values[i]-floor)/(ceil-floor),0,1);
-    const y=h-level*level*h*.86;
-    if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  const pw=plotWidth(w);
+  for(let i=0;i<values.length;++i){
+    const x=pw*i/(values.length-1),y=spectrumY(values[i]);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
   }
-  ctx.lineTo(pw,h);ctx.lineTo(0,h);ctx.closePath();
-  const grad=ctx.createLinearGradient(0,0,0,h);
-  grad.addColorStop(0,"rgba(108,173,126,.19)");
-  grad.addColorStop(1,"rgba(64,133,100,.005)");
-  ctx.fillStyle=grad;ctx.fill();
+  return true;
+};
+const drawSpectrum=(values,fill)=>{
+  if(!spectrumPath(values))return;
+  const pw=plotWidth(w);
+  if(fill){
+    ctx.lineTo(pw,h);ctx.lineTo(0,h);ctx.closePath();
+    const grad=ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0,"rgba(200,200,211,.28)");
+    grad.addColorStop(.52,"rgba(158,160,171,.20)");
+    grad.addColorStop(1,"rgba(88,92,106,.11)");
+    ctx.fillStyle=grad;ctx.fill();
+  }
+  if(spectrumPath(values)){
+    ctx.strokeStyle=fill?"#c3c4cc88":"#959dad9c";
+    ctx.lineWidth=fill?1.25:.9;ctx.stroke();
+  }
+};
+const drawMeters=()=>{
+  const right=plotWidth(w),x=right+9,trackH=h-38,yTop=12,barW=9;
+  const peak=[spec.peakL||0,spec.peakR||0];
+  for(let channel=0;channel<2;++channel){
+    const bx=x+channel*12;
+    ctx.fillStyle="#101822";ctx.fillRect(bx,yTop,barW,trackH);
+    const level=clamp((20*Math.log10(Math.max(peak[channel],1.e-8))+90)/90,0,1);
+    const height=trackH*level;
+    const grad=ctx.createLinearGradient(0,yTop+trackH,0,yTop);
+    grad.addColorStop(0,"#4acfa3");grad.addColorStop(.80,"#dfca61");grad.addColorStop(1,"#e66664");
+    ctx.fillStyle=grad;ctx.fillRect(bx,yTop+trackH-height,barW,height);
+    ctx.fillStyle="#a5b4c0";ctx.font="9px Consolas,monospace";ctx.textAlign="center";
+    ctx.fillText(channel===0?"L":"R",bx+barW/2,h-7);
+  }
 };
 const draw=()=>{
   if(w<2||h<2)return;
@@ -217,28 +248,21 @@ const draw=()=>{
     ctx.fillStyle=db===0?"#f0c86d":"#a9a0a8";
     ctx.fillText((db>0?"+":"")+db,pw-6,clamp(y+3,13,h-17));
   }
-  // Independent spectrum scale in a discrete right-side rail.
+  // Right meter and analyzer level reference, physically separate from EQ dB gain axis.
+  const range=spec.range===60||spec.range===120?spec.range:90;
   ctx.beginPath();ctx.moveTo(pw+.5,0);ctx.lineTo(pw+.5,h);
   ctx.strokeStyle="#4a444d";ctx.stroke();
   ctx.textAlign="right";ctx.font="9px Consolas,monospace";
-  for(let level=-20;level>=-100;level-=20){
-    const y=clamp(h*(level+108)/108,0,h-6);
-    ctx.fillStyle="#777d89";ctx.fillText(String(level),w-5,h-y-2);
+  for(let level=0;level>=-range;level-=20){
+    const y=h*(-level)/range;
+    ctx.fillStyle="#838c98";ctx.fillText(String(level),w-5,clamp(y+5,13,h-22));
   }
   if(showSpectrum){
-    ctx.globalAlpha=.75;drawSpectrum(spec.post);ctx.globalAlpha=.55;
-    if(spec.pre?.length){ // input is intentionally a faint line, never a second opaque fill
-      ctx.beginPath();
-      for(let i=0;i<spec.pre.length;i++){
-        const x=pw*i/(spec.pre.length-1);
-        const lv=clamp((spec.pre[i]+104)/90,0,1);
-        const y=h-lv*lv*h*.86;
-        if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-      }
-      ctx.lineWidth=.8;ctx.strokeStyle="#a2a2b6";ctx.stroke();
-    }
+    if(spec.postVisible!==false){ctx.globalAlpha=.89;drawSpectrum(spec.post,true);}
+    if(spec.preVisible!==false){ctx.globalAlpha=.72;drawSpectrum(spec.pre,false);}
     ctx.globalAlpha=1;
   }
+  drawMeters();
   drawSelectedBand();
   drawResponse();
   for(let i=0;i<MAX;++i){
@@ -397,6 +421,24 @@ $("routeGroup").addEventListener("click",e=>{
   const btn=e.target.closest("[data-route]");
   if(selected>=0&&btn)setParam(selected,"route",Number(btn.dataset.route));
 });
+// M2.4 analyzer controls are only editor telemetry; no host audio parameters altered.
+const analyzerFields=[["fftSelect","fft"],["speedSelect","speed"],["tiltSelect","tilt"],["rangeSelect","range"]];
+const emitSetting=(field,value)=>emit({kind:"analyzerSettings",field,value});
+for(const [id,field] of analyzerFields)$(id).addEventListener("change",()=>{
+  const value=Number($(id).value);
+  if(Number.isFinite(value))emitSetting(field,value);
+});
+for(const [id,field] of [["showPre","pre"],["showPost","post"],["freezeSpectrum","freeze"]])
+  $(id).addEventListener("change",()=>emitSetting(field,!!$(id).checked));
+$("analyzerMenuBtn").onclick=()=>{
+  $("quickHelp").hidden=true;$("bandList").hidden=true;
+  $("analyzerMenu").hidden=!$("analyzerMenu").hidden;
+};
+$("advancedBtn").onclick=()=>{
+  const expanded=$("inspector").classList.toggle("expanded");
+  $("advancedBtn").textContent=expanded?"LESS ▴":"MORE ▾";
+  $("advancedBtn").setAttribute("aria-expanded",String(expanded));
+};
 $("viewBtn").onclick=()=>{
   showSpectrum=!showSpectrum;
   $("spectrumStatus").textContent=showSpectrum?"ON":"OFF";
@@ -405,11 +447,11 @@ $("viewBtn").onclick=()=>{
   changed();
 };
 $("bandsBtn").onclick=()=>{
-  $("quickHelp").hidden=true;
+  $("quickHelp").hidden=true;$("analyzerMenu").hidden=true;
   $("bandList").hidden=!$("bandList").hidden;
 };
 $("helpBtn").onclick=()=>{
-  $("bandList").hidden=true;
+  $("bandList").hidden=true;$("analyzerMenu").hidden=true;
   $("quickHelp").hidden=!$("quickHelp").hidden;
 };
 $("closeInspector").onclick=()=>select(-1);

@@ -85,3 +85,10 @@ The Linux fast CI job also generates a deterministic **browser screenshot** at 9
 ## Competitive gap audit (2026-10-30)
 
 After a user-provided side-by-side screenshot comparison of ArSonEQ Standalone and FabFilter Pro-Q 3 in VSTHost, the latest engineering priorities are documented in [the Pro-Q 3 gap audit and M2.4 milestone plan](docs/PROQ3_GAP_AUDIT_AND_M24_PLAN_20261030.md). The important uncovered issue is not a superficial gradient: ArSonEQ's analyzer currently averages stereo samples before FFT, losing fully anti-phase stereo signals, and maps nearest FFT bins to a coarse log spectrum without Pro-Q-style speed/tilt/resolution options. The planned fix preserves actual stereo spectral energy, correct measurement units and real-time safety. GUI density and VST3/Standalone quality gates follow this correctness milestone. Do not interpret the published M2.3 engineering builds as equal in sound/features/performance to Pro-Q 3.
+
+
+## M2.4 — native stereo spectrum and professional compact graph (engineering candidate)
+
+The user-reportable Pro-Q 3 comparison motivated replacing the coarse mono spectrum (which cancelled antiphase L/R) with **real pre/post L/R PCM telemetry**, independent FFTs and power-domain stereo aggregation. GUI-side Hann FFT is 1024–8192 selectable, 384 logarithmic points with time-based smoothing; FFT tilt defaults to 4.5 dB/oct and affects the **visualization only**, not audio. Pre/Post/Freeze and display range are selectable; right meter shows sample peaks (not true peaks). A 70px selected-band quick strip keeps at least 390px graph height at 900×535; click MORE for full controls. No new VST3 host parameters, no audio callback allocation/FFT, no online UI libraries.
+
+**Release status: engineering candidate.** Native/GUI automatic tests and a dual-format Windows build are prerequisites; real hardware and VSTHost/ArSonMix testing remain necessary before declaring Pro-Q 3 feature parity.

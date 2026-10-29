@@ -96,10 +96,11 @@ void ArSonEQAudioProcessor::processAudio(juce::AudioBuffer<Sample>& audio) {
         auto* right=audio.getWritePointer(1);
         for (int s=0;s<frames;++s) {
             double l=left[s],r=right[s];
-            const float before=tap?static_cast<float>(0.5*(l+r)):0.0f;
+            const float preL=tap?static_cast<float>(l):0.f;
+            const float preR=tap?static_cast<float>(r):0.f;
             engine_.process(l,r);
             left[s]=static_cast<Sample>(l);right[s]=static_cast<Sample>(r);
-            if (tap) analyzer_.push(before,static_cast<float>(0.5*(l+r)));
+            if (tap) analyzer_.push(preL,preR,static_cast<float>(l),static_cast<float>(r));
         }
         for (int ch=2;ch<channels;++ch) audio.clear(ch,0,frames);
     }

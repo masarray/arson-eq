@@ -5,7 +5,7 @@
 
 namespace {
 constexpr int graphPoints=256;
-constexpr int spectrumPoints=224;
+constexpr int spectrumPoints=arson::eq::SpectrumDisplay::points;
 constexpr double lowest=20.0,highest=20000.0;
 
 juce::var makeObject() { return juce::var(new juce::DynamicObject()); }
@@ -77,12 +77,9 @@ ArSonEQWebEditor::ArSonEQWebEditor(ArSonEQAudioProcessor& p)
     // Full-canvas EQ fits a normal DAW floating plugin window (~Pro-Q aspect).
     setResizeLimits(760,455,1360,850);
     graphEngine_.prepare(p.configuredSampleRate());
-    window_.fill(0.0f);
-    for(int i=0;i<fftSize_;++i)
-        window_[static_cast<size_t>(i)]=0.5f*(1.0f-
-            std::cos(2.0f*juce::MathConstants<float>::pi*i/(fftSize_-1)));
-    levelsPre_.fill(-108.f);
-    levelsPost_.fill(-108.f);
+    levelsPre_.fill(-120.f);
+    levelsPost_.fill(-120.f);
+    lastAnalysisTick_=juce::Time::getMillisecondCounter();
     setSize(900,535);
     processor_.analyzer().setEnabled(true);
     browser_.goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
@@ -157,9 +154,27 @@ void ArSonEQWebEditor::onCommand(const juce::var& message) {
         processor_.analyzer().setEnabled(analyzerVisible_);
         if(!analyzerVisible_) {
             arson::eq::MeterFrame old;
-            while(processor_.analyzer().pop(old)) {} // Drain stale visual samples.
-            framesSeen_=0;
+            while(processor_.analyzer().pop(old)) {}
+            framesSeen_=0;framesSinceFFT_=0;
         }
+        return;
+    }
+    if(kind=="analyzerSettings") {
+        const auto field=message.getProperty("field",{}).toString();
+        const auto value=message.getProperty("value",0);
+        const int v=static_cast<int>(value);
+        if(field=="fft" && v>=10 && v<=13) {
+            fftOrder_=v;framesSinceFFT_=0;levelsPre_.fill(-120.f);levelsPost_.fill(-120.f);
+        } else if(field=="speed" && v>=0 && v<=2) speed_=v;
+        else if(field=="range" && (v==60||v==90||v==120)) range_=v;
+        else if(field=="tilt" && (static_cast<double>(value)==0. ||
+                static_cast<double>(value)==3. ||
+                static_cast<double>(value)==4.5 ||
+                static_cast<double>(value)==6.))
+            tilt_=static_cast<float>(static_cast<double>(value));
+        else if(field=="freeze")freeze_=static_cast<bool>(value);
+        else if(field=="pre")showPre_=static_cast<bool>(value);
+        else if(field=="post")showPost_=static_cast<bool>(value);
         return;
     }
     const int id=static_cast<int>(message.getProperty("id",-1));
@@ -229,44 +244,84 @@ void ArSonEQWebEditor::sendState(bool response) {
 void ArSonEQWebEditor::sendSpectrum() {
     arson::eq::MeterFrame f;
     int drained=0;
-    while(drained<arson::eq::AnalyzerQueue::capacity &&
-        processor_.analyzer().pop(f)) {
-        pre_[head_]=f.before;post_[head_]=f.after;
-        head_=(head_+1)&(fftSize_-1);
+    float peakLeft=0.f,peakRight=0.f;
+    while(drained<static_cast<int>(arson::eq::AnalyzerQueue::capacity) &&
+          processor_.analyzer().pop(f)) {
+        samples_[0][head_]=f.preL;
+        samples_[1][head_]=f.preR;
+        samples_[2][head_]=f.postL;
+        samples_[3][head_]=f.postR;
+        peakLeft=std::max(peakLeft,std::abs(f.postL));
+        peakRight=std::max(peakRight,std::abs(f.postR));
+        head_=(head_+1)&(maxSize_-1);
         ++framesSeen_;++framesSinceFFT_;++drained;
     }
-    if(!ready_||!pageLoaded_||framesSeen_<fftSize_||framesSinceFFT_<1024)return;
+    // Sample peaks are from real native output, not synthetic UI levels.
+    peakL_=std::max(peakLeft,peakL_*0.82f);
+    peakR_=std::max(peakRight,peakR_*0.82f);
+    if(!ready_||!pageLoaded_||framesSeen_<static_cast<uint64_t>(1<<fftOrder_)
+       ||framesSinceFFT_<512)return;
     framesSinceFFT_=0;
-    for(int i=0;i<fftSize_;++i) {
-        const auto pos=(head_+static_cast<size_t>(i))&(fftSize_-1);
-        fftPre_[static_cast<size_t>(i)]=pre_[pos]*window_[static_cast<size_t>(i)];
-        fftPost_[static_cast<size_t>(i)]=post_[pos]*window_[static_cast<size_t>(i)];
+    const auto tick=juce::Time::getMillisecondCounter();
+    const double elapsed=std::clamp(double(tick-lastAnalysisTick_)/1000.,0.001,0.5);
+    lastAnalysisTick_=tick;
+    if(!freeze_) {
+        const int N=1<<fftOrder_;
+        const juce::dsp::FFT& fft=fftOrder_==10?fft10_:fftOrder_==11?fft11_:
+                                  fftOrder_==12?fft12_:fft13_;
+        double hannSum=0.;
+        for(int i=0;i<N;++i)
+            hannSum+=0.5*(1.-std::cos(2.*juce::MathConstants<double>::pi*i/(N-1)));
+        const double coherentAmplitude=std::max(1.,hannSum*0.5);
+        // CPU/render work happens solely on JUCE message thread.
+        for(int channel=0;channel<4;++channel) {
+            fftScratch_.fill(0.f);
+            for(int i=0;i<N;++i) {
+                const auto pos=(head_+maxSize_-static_cast<size_t>(N)+static_cast<size_t>(i))&(maxSize_-1);
+                const auto w=0.5f*(1.f-std::cos(2.f*juce::MathConstants<float>::pi*i/(N-1)));
+                fftScratch_[static_cast<size_t>(i)]=samples_[static_cast<size_t>(channel)][pos]*w;
+            }
+            fft.performFrequencyOnlyForwardTransform(fftScratch_.data());
+            std::copy_n(fftScratch_.data(),N/2+1,magnitudes_[static_cast<size_t>(channel)].data());
+        }
+        const auto sr=processor_.configuredSampleRate();
+        const bool fast=speed_==0;
+        const auto smoothTime=elapsed*(speed_==2?0.46:1.0);
+        for(int i=0;i<spectrumPoints;++i) {
+            const double hz=arson::eq::SpectrumDisplay::frequency(i);
+            const auto prePower=arson::eq::SpectrumDisplay::samplePower(
+                magnitudes_[0],magnitudes_[1],N,sr,hz)/(coherentAmplitude*coherentAmplitude);
+            const auto postPower=arson::eq::SpectrumDisplay::samplePower(
+                magnitudes_[2],magnitudes_[3],N,sr,hz)/(coherentAmplitude*coherentAmplitude);
+            const auto targetPre=arson::eq::SpectrumDisplay::db(prePower);
+            const auto targetPost=arson::eq::SpectrumDisplay::db(postPower);
+            levelsPre_[static_cast<size_t>(i)]=arson::eq::SpectrumDisplay::smooth(
+                levelsPre_[static_cast<size_t>(i)],targetPre,smoothTime,fast);
+            levelsPost_[static_cast<size_t>(i)]=arson::eq::SpectrumDisplay::smooth(
+                levelsPost_[static_cast<size_t>(i)],targetPost,smoothTime,fast);
+        }
     }
-    fft_.performFrequencyOnlyForwardTransform(fftPre_.data());
-    fft_.performFrequencyOnlyForwardTransform(fftPost_.data());
-    const auto sr=processor_.configuredSampleRate();
     juce::Array<juce::var> before,after;
     for(int i=0;i<spectrumPoints;++i) {
-        const double hz=lowest*std::pow(highest/lowest,
-            static_cast<double>(i)/(spectrumPoints-1));
-        const int index=juce::jlimit(1,fftSize_/2,static_cast<int>(
-            std::round(hz*fftSize_/sr)));
-        const auto k=static_cast<size_t>(index);
-        const auto magnitude=[](float x) {
-            return 20.0f*std::log10(std::max(x*4.f/fftSize_,1.0e-8f));
-        };
-        const auto a=juce::jlimit(-108.f,0.f,magnitude(fftPre_[k]));
-        const auto b=juce::jlimit(-108.f,0.f,magnitude(fftPost_[k]));
-        levelsPre_[k]=.67f*levelsPre_[k]+.33f*a;
-        levelsPost_[k]=.67f*levelsPost_[k]+.33f*b;
-        before.add(static_cast<double>(levelsPre_[k]));
-        after.add(static_cast<double>(levelsPost_[k]));
+        const auto hz=arson::eq::SpectrumDisplay::frequency(i);
+        before.add(static_cast<double>(arson::eq::SpectrumDisplay::tilt(
+            levelsPre_[static_cast<size_t>(i)],hz,tilt_)));
+        after.add(static_cast<double>(arson::eq::SpectrumDisplay::tilt(
+            levelsPost_[static_cast<size_t>(i)],hz,tilt_)));
     }
     auto snapshot=makeObject();
     property(snapshot,"pre",std::move(before));
     property(snapshot,"post",std::move(after));
+    property(snapshot,"peakL",static_cast<double>(peakL_));
+    property(snapshot,"peakR",static_cast<double>(peakR_));
+    property(snapshot,"range",range_);
+    property(snapshot,"tilt",static_cast<double>(tilt_));
+    property(snapshot,"preVisible",showPre_);
+    property(snapshot,"postVisible",showPost_);
+    property(snapshot,"frozen",freeze_);
     browser_.emitEventIfBrowserIsVisible("eq-spectrum",snapshot);
 }
+
 void ArSonEQWebEditor::timerCallback() {
     bool changed=false;
     const auto rate=processor_.configuredSampleRate();

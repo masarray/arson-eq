@@ -12,6 +12,7 @@ function element(id) {
     classList:{toggle(){},add(){},remove(){}},
     addEventListener(name,callback){events[name]=callback;},
     dispatch(name,payload){assert.ok(events[name],id+" has "+name);events[name](payload||{});},
+    setAttribute(){},
     appendChild(child){this.children.push(child);return child;},
     replaceChildren(){this.children=[];},
     querySelectorAll(){return [0,1,2,3,4].map(i=>({
@@ -58,7 +59,7 @@ const curve=Array(256).fill(0);
 handlers["eq-state"]({bands,rate:48000,curve:{l:curve,r:curve,cross:curve,band:curve}});
 assert.ok(element("bridgeStatus").textContent.includes("CONNECTED"),"UI becomes connected");
 assert.ok(element("bandCount").textContent.includes("1 / 24"),"host band snapshot reflected");
-handlers["eq-spectrum"]({pre:Array(224).fill(-80),post:Array(224).fill(-75)});
+handlers["eq-spectrum"]({pre:Array(384).fill(-80),post:Array(384).fill(-75),range:90,peakL:0.2,peakR:0.15});
 element("eqCanvas").dispatch("pointerdown",{button:0,pointerId:1,clientX:431,clientY:100});
 assert.ok(find("begin").length,"host gesture starts on drag");
 assert.equal(element("inspector").hidden,true,"dock stays closed while first pointer drag is active");
@@ -75,6 +76,15 @@ element("qKnob").dispatch("pointerup",{pointerId:25});
 assert.ok(find("begin").some(x=>x.fields.includes("q")),"Q knob opens host automation gesture");
 assert.ok(find("edit").some(x=>x.field==="q"),"Q knob has actual editing behavior");
 assert.ok(find("end").some(x=>x.fields.includes("q")),"Q knob closes host automation gesture");
+element("analyzerMenu").hidden=true;
+element("analyzerMenuBtn").onclick();
+assert.equal(element("analyzerMenu").hidden,false,"analyzer FFT options available");
+element("fftSelect").value="13";element("fftSelect").dispatch("change");
+assert.ok(find("analyzerSettings").some(x=>x.field==="fft"&&x.value===13),"native FFT resolution changes");
+element("freezeSpectrum").checked=true;element("freezeSpectrum").dispatch("change");
+assert.ok(find("analyzerSettings").some(x=>x.field==="freeze"&&x.value===true),"native analyzer freeze");
+element("advancedBtn").onclick();
+assert.ok(find("ready").length,"advanced editor toggle does not restart browser");
 element("viewBtn").onclick();
 assert.ok(find("spectrum").some(x=>x.enabled===false),"spectrum switch gates native telemetry");
 element("viewBtn").onclick();
@@ -98,7 +108,7 @@ assert.ok(inspectorPosition>graphClose && graphClose>markup.indexOf('id="quickHe
   "band controls are after graph closing tag, never inside interactive plot");
 assert.ok(style.includes(".workspace{flex:1;min-height:0;display:flex;flex-direction:column"),
   "dock stacks under graph without occlusion");
-assert.ok(style.includes("flex:0 0 148px"),"dock has bounded, predictable layout space");
+assert.ok(style.includes("flex:0 0 70px"),"selected EQ quick dock <=70px");
 assert.ok(!style.includes("filter:brightness"),"no global hover GPU brightness filters");
 handlers["eq-state"]({bands,rate:48000,curve:{l:curve,r:curve,cross:curve,band:curve}});
 // Check host-originated gain beyond 12 dB no longer silently clips nodes.

@@ -155,3 +155,38 @@ button:hover:not(:disabled){border-color:#91a4b5}
   .preset-center{min-width:120px}.bar-button{padding:0 6px}.footer-center{display:none}}
 @media(max-height:510px){.inspector{flex-basis:138px;min-height:138px;margin-bottom:3px}
   .inspector-bottom{margin-top:3px;padding-top:3px}.knob-face{height:27px;width:27px}}
+
+
+/* M2.4: main EQ plot remains dominant (~390-410px at 535px editor).
+   Advanced controls use reserved height, never overlay any EQ node. */
+.inspector{flex:0 0 70px;min-height:70px;margin-bottom:3px;padding:0 11px 4px;width:min(630px,calc(100% - 22px))}
+.inspector-top{height:21px}
+.band-inspector{padding-top:3px}
+.parameter-row{grid-template-columns:1.3fr 1fr 1fr .85fr;gap:8px}
+.parameter{font-size:8px;text-align:left;letter-spacing:.65px}
+.parameter select,.number{height:25px;margin-top:2px}
+.shape-glyph,.knob-face,.inspector-bottom{display:none}
+.inspector.expanded{flex:0 0 151px;min-height:151px;padding-bottom:7px;margin-bottom:6px}
+.inspector.expanded .knob-face{display:block}
+.inspector.expanded .shape-glyph{display:grid}
+.inspector.expanded .inspector-bottom{display:flex}
+.inspector.expanded .parameter{text-align:center}
+.inspector.expanded .band-inspector{padding-top:5px}
+.inspector-actions #advancedBtn{font-size:9px;min-width:50px;color:#b9dbeb}
+.analyzer-menu{position:absolute;z-index:9;top:34px;right:70px;width:315px;
+  background:linear-gradient(#2b313b,#161d27);border:1px solid #5a6471;
+  padding:12px;border-radius:6px;box-shadow:0 9px 24px #000a}
+.analyzer-title{display:flex;justify-content:space-between;align-items:center;color:#e5e9ef;
+  font-size:10px;font-weight:750;letter-spacing:.7px;margin-bottom:12px}
+.analyzer-title span{font-size:9px;color:#8fa5b5;font-weight:400;letter-spacing:0}
+.analyzer-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.analyzer-options label{font-size:9px;color:#adbdca;font-weight:700}
+.analyzer-options select{display:block;width:100%;height:28px;margin-top:4px;
+  color:#e5f2f7;background:#223543;border:1px solid #5c6e7b;border-radius:4px}
+.analyzer-switches{display:flex;justify-content:space-between;margin:12px 0 9px;color:#c8deeb;
+  border-top:1px solid #40525e;padding-top:10px}
+.analyzer-switches label{cursor:pointer}
+.analyzer-switches input{accent-color:#6bd2c1;vertical-align:middle}
+.analyzer-menu small{font-size:9px;color:#8b9eab}
+@media(max-height:510px){.inspector{flex-basis:70px;min-height:70px}
+  .inspector.expanded{flex-basis:140px;min-height:140px}}
