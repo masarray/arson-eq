@@ -92,10 +92,10 @@ ArSonEQWebEditor::~ArSonEQWebEditor() {
     stopTimer();
     processor_.analyzer().setEnabled(false);
     for(int i=0;i<arson::eq::kMaxBands;++i)
-        for(int j=0;j<2;++j)
+        for(int j=0;j<3;++j)
             if(gestures_[static_cast<size_t>(i)][static_cast<size_t>(j)])
                 if(auto* param=processor_.parameters.getParameter(
-                    ArSonEQAudioProcessor::parameterId(i,j==0?"freq":"gain")))
+                    ArSonEQAudioProcessor::parameterId(i,j==0?"freq":j==1?"gain":"q")))
                     param->endChangeGesture();
 }
 void ArSonEQWebEditor::resized() { browser_.setBounds(getLocalBounds()); }
@@ -132,12 +132,12 @@ void ArSonEQWebEditor::gesture(int id,const juce::var& fields,bool begin) {
     if(id<0||id>=arson::eq::kMaxBands||!fields.isArray())return;
     for(const auto& item:*fields.getArray()) {
         const auto field=item.toString();
-        const int n=field=="freq"?0:field=="gain"?1:-1;
+        const int n=field=="freq"?0:field=="gain"?1:field=="q"?2:-1;
         if(n<0)continue;
         auto& current=gestures_[static_cast<size_t>(id)][static_cast<size_t>(n)];
         if(current==begin)continue;
         if(auto* param=processor_.parameters.getParameter(
-            ArSonEQAudioProcessor::parameterId(id,n==0?"freq":"gain"))) {
+            ArSonEQAudioProcessor::parameterId(id,n==0?"freq":n==1?"gain":"q"))) {
             if(begin)param->beginChangeGesture();
             else param->endChangeGesture();
             current=begin;
@@ -150,6 +150,16 @@ void ArSonEQWebEditor::onCommand(const juce::var& message) {
     if(kind=="ready") {
         ready_=true;
         if(pageLoaded_)sendState(true);
+        return;
+    }
+    if(kind=="spectrum") {
+        analyzerVisible_=static_cast<bool>(message.getProperty("enabled",true));
+        processor_.analyzer().setEnabled(analyzerVisible_);
+        if(!analyzerVisible_) {
+            arson::eq::MeterFrame old;
+            while(processor_.analyzer().pop(old)) {} // Drain stale visual samples.
+            framesSeen_=0;
+        }
         return;
     }
     const int id=static_cast<int>(message.getProperty("id",-1));
@@ -272,5 +282,5 @@ void ArSonEQWebEditor::timerCallback() {
         }
     }
     if(changed)sendState(true);
-    sendSpectrum();
+    if(analyzerVisible_)sendSpectrum();
 }

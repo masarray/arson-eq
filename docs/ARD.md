@@ -123,3 +123,11 @@ User supplied side-by-side screenshots: Pro-Q 3 (902×572), ArSonMix mixer (1652
 **Rendering**: Always draw full graph, subtle log-frequency grid, warm 0dB baseline, restrained 2px curve, thin R line only when different from L, per-band colored draggable nodes and optional FFT layer. No React runtime and no constant idle redraw. Canvas changes remain event/telemetry driven and are capped at device DPR=2. No changes to the audio callback, native DSP or stable host parameters. WebView2 is still a browser process; memory/idle-paint tests remain required.
 
 **Acceptance**: JavaScript smoke checks selected inspector visibility, floating position, no sidebar, menus and native gestures; Windows JUCE/WebView2 VST3 release build required; actual DAW screenshot/re-open/multi-instance test and CPU/RAM profiling remain release gates.
+
+
+### M2.1 finishing integration — rotary automation and spectrum cost gate
+The floating inspector includes three tactile rotary controls for frequency, gain and Q; each supports vertical pointer drag, mapped logarithmically for Hz/Q and linearly for dB. Each pointer begins one APVTS gesture, sends bounded parameter edits during movement, and ends the gesture on pointer release/cancel/lost capture. The native bridge's fixed gesture array grows from 2 to 3 fields. Numeric inputs remain for precise editing. This only extends the *GUI bridge*; the engine, 168 parameter IDs, and persisted state schema are unchanged.
+
+The ANALYZER switch sends a native `spectrum` command. When off, `AnalyzerQueue::setEnabled(false)` atomically shuts off audio telemetry production, and the message-thread FFT/send loop is skipped; when on, telemetry resumes. Closing the editor still disables the queue. This prevents unnecessary audio-to-UI data and expensive FFT work when the user wants a still EQ curve. This is a source-level optimization and must be validated with actual Windows WebView2 CPU measurements.
+
+Smoke coverage checks knob Q gesture, native UI event paths, spectrum ON/OFF command, full-width graph, no permanent sidebar, popup placement, and popup/menu lifecycle. CI workflow paths include UI assets (build) and all WebUI test changes (headless), without rebuilding JUCE for a test-file-only edit.

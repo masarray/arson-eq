@@ -26,10 +26,10 @@
       <div id="emptyInspector" hidden></div>
       <div id="bandInspector" class="band-inspector" hidden>
         <div class="parameter-row">
-          <label class="parameter shape">FILTER TYPE<select id="typeSelect"><option value="0">Bell</option><option value="1">Low Shelf</option><option value="2">High Shelf</option><option value="3">Low Cut</option><option value="4">High Cut</option><option value="5">Notch</option></select></label>
-          <label class="parameter">FREQUENCY<div class="number"><input id="freqInput" type="number" min="20" max="20000" step=".1"><span>Hz</span></div></label>
-          <label class="parameter">GAIN<div class="number"><input id="gainInput" type="number" min="-24" max="24" step=".1"><span>dB</span></div></label>
-          <label class="parameter q-field">Q<div class="number"><input id="qInput" type="number" min=".1" max="24" step=".01"><span>Q</span></div></label>
+          <label class="parameter shape">FILTER TYPE<span class="shape-glyph" id="typeGlyph">⌒</span><select id="typeSelect"><option value="0">Bell</option><option value="1">Low Shelf</option><option value="2">High Shelf</option><option value="3">Low Cut</option><option value="4">High Cut</option><option value="5">Notch</option></select></label>
+          <label class="parameter">FREQUENCY<span class="knob-face freq" id="freqKnob" title="Drag vertically to adjust freq"></span><div class="number"><input id="freqInput" type="number" min="20" max="20000" step=".1"><span>Hz</span></div></label>
+          <label class="parameter">GAIN<span class="knob-face gain" id="gainKnob" title="Drag vertically to adjust gain"></span><div class="number"><input id="gainInput" type="number" min="-24" max="24" step=".1"><span>dB</span></div></label>
+          <label class="parameter q-field">Q<span class="knob-face q" id="qKnob" title="Drag vertically to adjust q"></span><div class="number"><input id="qInput" type="number" min=".1" max="24" step=".01"><span>Q</span></div></label>
         </div>
         <div class="inspector-bottom">
           <div class="channel-wrap"><span>CHANNEL</span><div class="route-group" id="routeGroup"><button type="button" data-route="0">ST</button><button type="button" data-route="1">L</button><button type="button" data-route="2">R</button><button type="button" data-route="3">MID</button><button type="button" data-route="4">SIDE</button></div></div>

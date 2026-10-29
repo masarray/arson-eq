@@ -80,3 +80,6 @@ The Windows VST3 ships a complete offline self-contained HTML/CSS/Canvas GUI thr
 
 ### M2.1 Compact Pro-EQ interaction acceptance
 For the primary 900×535 editor, neither graph nor X labels may clip. No permanent inspector sidebar. The main EQ graph occupies the width; nodes are directly editable and selecting one shows a compact floating popup containing type/frequency/gain/Q/slope/stereo routing, bypass/delete. Floating popup must not leave visible screen bounds; selecting empty space closes it. Header/bottom chrome are compact and derive their optical materials from ArSonMix. Display only information required for EQ operation (no repetitive status labels or empty placeholder columns). The plugin keeps the same actual C++ transfer curves; a fabricated/retuned JavaScript curve is forbidden.
+
+
+- **P1 rotary interaction:** Frequency, Gain and Q each have a compact visible tactile rotary control (plus numeric editing) in the floating inspector, with native host automation gesture boundaries. Q and frequency use logarithmic response, gain linear. Cut filters disable irrelevant Gain. Analyzer OFF must stop real-time telemetry and FFT work, not just hide the spectrum.

@@ -41,7 +41,7 @@ private:
     LocalBrowser browser_;
     arson::eq::Engine graphEngine_;
     std::array<arson::eq::Band,arson::eq::kMaxBands> cache_{};
-    std::array<std::array<bool,2>,arson::eq::kMaxBands> gestures_{};
+    std::array<std::array<bool,3>,arson::eq::kMaxBands> gestures_{};
     juce::dsp::FFT fft_{fftOrder_};
     std::array<float,fftSize_> pre_{},post_{},window_{};
     std::array<float,2*fftSize_> fftPre_{},fftPost_{};
@@ -50,6 +50,7 @@ private:
     uint64_t framesSeen_=0;
     int framesSinceFFT_=0;
     int selected_=-1;
+    bool analyzerVisible_=true;
     bool ready_=false;
     bool pageLoaded_=false;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArSonEQWebEditor)

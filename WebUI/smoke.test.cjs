@@ -56,7 +56,7 @@ const bands=Array.from({length:24},(_,i)=>({
 }));
 const curve=Array(256).fill(0);
 handlers["eq-state"]({bands,rate:48000,curve:{l:curve,r:curve,cross:curve,band:curve}});
-assert.ok(element("bridgeStatus").innerHTML.includes("CONNECTED"),"UI becomes connected");
+assert.ok(element("bridgeStatus").textContent.includes("CONNECTED"),"UI becomes connected");
 assert.ok(element("bandCount").textContent.includes("1 / 24"),"host band snapshot reflected");
 handlers["eq-spectrum"]({pre:Array(224).fill(-80),post:Array(224).fill(-75)});
 element("eqCanvas").dispatch("pointerdown",{button:0,pointerId:1,clientX:452,clientY:133});
@@ -67,6 +67,16 @@ element("eqCanvas").dispatch("pointermove",{pointerId:1,clientX:500,clientY:170}
 element("eqCanvas").dispatch("pointerup",{pointerId:1});
 assert.ok(find("end").length,"host gesture ends after drag");
 assert.ok(find("edit").some(x=>x.field==="freq"),"drag automates frequency");
+element("qKnob").dispatch("pointerdown",{button:0,pointerId:25,clientY:120,preventDefault(){}});
+element("qKnob").dispatch("pointermove",{pointerId:25,clientY:98});
+element("qKnob").dispatch("pointerup",{pointerId:25});
+assert.ok(find("begin").some(x=>x.fields.includes("q")),"Q knob opens host automation gesture");
+assert.ok(find("edit").some(x=>x.field==="q"),"Q knob has actual editing behavior");
+assert.ok(find("end").some(x=>x.fields.includes("q")),"Q knob closes host automation gesture");
+element("viewBtn").onclick();
+assert.ok(find("spectrum").some(x=>x.enabled===false),"spectrum switch gates native telemetry");
+element("viewBtn").onclick();
+assert.ok(find("spectrum").some(x=>x.enabled===true),"spectrum gate resumes native telemetry");
 element("eqCanvas").dispatch("dblclick",{clientX:100,clientY:300});
 assert.ok(find("add").length,"double click empty graph creates band");
 element("closeInspector").onclick();

@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "Source/DSP/**"
+      - "WebUI/**"
       - "tests/**"
       - "CMakeLists.txt"
       - ".github/workflows/dsp.yml"

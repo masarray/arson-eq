@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - "Source/**"
+      - "WebUI/index.html"
+      - "WebUI/style.css"
+      - "WebUI/app.js"
       - "tests/**"
       - "CMakeLists.txt"
       - ".github/workflows/vst3-windows.yml"

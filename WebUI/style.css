@@ -12,3 +12,22 @@
 .bottom-bar{flex:0 0 29px;height:29px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 11px;background:linear-gradient(#263545,#131c28);border-top:1px solid #405364;box-shadow:inset 0 1px #4e6576;color:#a6bbc7;font:9px "Segoe UI",Arial,sans-serif}.footer-left,.footer-center,.footer-right{display:flex;align-items:center;gap:9px;white-space:nowrap}.signal-flag{color:#bcd0dd;font-weight:650;letter-spacing:.6px}.signal-flag i{display:inline-block;width:5px;height:5px;background:#48d4ab;border-radius:50%;margin-right:4px;box-shadow:0 0 7px #4ddfbd}.footer-divider{height:12px;width:1px;background:#455b6b}.footer-left #bridgeStatus{font-size:9px;color:#89a4b6;max-width:190px;overflow:hidden;text-overflow:ellipsis}.footer-center{font-size:8px;letter-spacing:1px;color:#91a3b1}.legend-mark{width:6px;height:6px;border-radius:50%;display:inline-block}.legend-mark.pre{background:#7e91a3}.legend-mark.post{background:#5ed6ac}.legend-mark.curve{background:#61dcec}.footer-right{color:#90acbf}.footer-right b{font-size:8px;letter-spacing:1.2px;color:#68cce0}
 @media(max-width:830px){.brand{min-width:153px}.brand-caption{display:none}.preset-center{min-width:130px}.top{gap:6px}.top-actions{gap:3px}.bar-button{padding:0 5px}.footer-center{display:none}}
 @media(max-height:490px){.top{flex-basis:38px;height:38px}.bottom-bar{flex-basis:26px;height:26px}.inspector{transform:scale(.90);transform-origin:top left}}
+
+/* Studio-grade tactile rotary controls. Canvas paints only when state changes. */
+.parameter-row{grid-template-columns:1.17fr 1.06fr 1.04fr .82fr;align-items:stretch}
+.parameter>select,.number{height:27px}
+.parameter>select{font-size:10px}
+.number input{font-size:12px}
+.shape-glyph{display:grid;place-items:center;height:34px;margin:4px auto 6px;color:#67d6df;font-size:28px;line-height:26px;text-shadow:0 0 8px #52e0e433}
+.knob-face{display:block;position:relative;height:35px;width:35px;margin:3px auto 6px;cursor:ns-resize;touch-action:none;border-radius:50%;border:2px solid #455a69;
+ background:radial-gradient(circle at 36% 25%,#69757f 0%,#2b343d 49%,#101922 71%),
+ conic-gradient(from 210deg,#53687a,#bdcbd4 26%,#435361 55%,#141f2a 82%,#51677a);
+ box-shadow:inset 0 1px 1px #e0eef777,inset 0 -2px 4px #040a12,0 2px 3px #05080ca6}
+.knob-face::before{content:"";position:absolute;inset:-5px;border:1px solid #405363;border-radius:50%;pointer-events:none}
+.knob-face::after{content:"";position:absolute;left:50%;top:50%;width:3px;height:7px;border-radius:4px;background:#73ebea;box-shadow:0 0 5px #4eead9;
+ transform:translate(-50%,-50%) rotate(var(--angle,-140deg)) translateY(-12px);pointer-events:none}
+.knob-face.gain::after{background:#f3c977;box-shadow:0 0 5px #e9b65d}
+.knob-face.q::after{background:#c6daf0;box-shadow:0 0 5px #9ab8e1}
+.knob-face:hover{border-color:#6cbbc6}
+.inspector-bottom{margin-top:8px;padding-top:7px}
+@media(max-height:490px){.knob-face{height:29px;width:29px}.shape-glyph{height:29px}.inspector{transform:scale(.92)}}

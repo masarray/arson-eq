@@ -52,3 +52,8 @@ Do not mark M2 DAW-validated based solely on the Windows compilation or mock-DOM
 - [x] Apply ArSonMix metal/glass/cyan semantics with restrained FabFilter-style 0 dB baseline and editable nodes.
 - [x] Add layout smoke assertions for disappearing inspector, popover mutual exclusion, and no permanent sidebar.
 - [ ] Confirm visual geometry in a real VST3 host at 100% and 150% Windows scaling; capture screenshot review and idle WebView2 memory/CPU.
+
+
+- [x] Floating native-web inspector now has tactile frequency/gain/Q rotary controls with host gesture lifecycle.
+- [x] Analyzer OFF atomically gates audio telemetry and skips editor FFT.
+- [x] Local mock-bridge UI smoke passed for rotary, full-canvas inspector, menu and analyzer gating; Windows VST3 final build remains subject to CI and real DAW review.

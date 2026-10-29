@@ -112,6 +112,14 @@ const renderInspector=()=>{
   $("gainInput").disabled=isCut(b.type)||b.type===5;
   $("slopeSelect").disabled=!isCut(b.type);
   $("noteLabel").textContent=noteFor(b.freq);
+  $("typeGlyph").textContent=["⌒","◡","◠","╱","╲","⌄"][b.type]||"⌒";
+  const knobAngle=(v,min,max,log=false)=>{
+    const t=log?(Math.log(v/min)/Math.log(max/min)):(v-min)/(max-min);
+    return (-140+280*clamp(t,0,1)).toFixed(1)+"deg";
+  };
+  $("freqKnob").style.setProperty("--angle",knobAngle(b.freq,20,20000,true));
+  $("gainKnob").style.setProperty("--angle",knobAngle(b.gain,-24,24));
+  $("qKnob").style.setProperty("--angle",knobAngle(b.q,.1,24,true));
   $("routeGroup").querySelectorAll("button").forEach(btn=>
     btn.classList.toggle("active",Number(btn.dataset.route)===b.route));
   positionInspector();
@@ -338,6 +346,7 @@ $("viewBtn").onclick=()=>{
   showSpectrum=!showSpectrum;
   $("spectrumStatus").textContent=showSpectrum?"ON":"OFF";
   $("viewBtn").classList.toggle("active",showSpectrum);
+  emit({kind:"spectrum",enabled:showSpectrum});
   changed();
 };
 $("bandsBtn").onclick=()=>{
@@ -349,6 +358,36 @@ $("helpBtn").onclick=()=>{
   $("quickHelp").hidden=!$("quickHelp").hidden;
 };
 $("closeInspector").onclick=()=>select(-1);
+const attachKnob=(id,field)=>{
+  const knob=$(id),lo=field==="freq"?20:field==="gain"?-24:.1;
+  const hi=field==="freq"?20000:field==="gain"?24:24;
+  let gesture=null;
+  knob.addEventListener("pointerdown",e=>{
+    if(selected<0||e.button!==0)return;
+    e.preventDefault();
+    gesture={pointer:e.pointerId,id:selected,startY:e.clientY,start:bands[selected][field]};
+    knob.setPointerCapture(e.pointerId);
+    emit({kind:"begin",id:selected,fields:[field]});
+  });
+  knob.addEventListener("pointermove",e=>{
+    if(!gesture||gesture.pointer!==e.pointerId)return;
+    const dy=gesture.startY-e.clientY;
+    const value=field==="gain"?gesture.start+dy*.12:
+      gesture.start*Math.exp(dy*.012);
+    setParam(gesture.id,field,clamp(value,lo,hi),false);
+  });
+  const end=e=>{
+    if(!gesture||gesture.pointer!==e.pointerId)return;
+    emit({kind:"end",id:gesture.id,fields:[field]});
+    gesture=null;
+  };
+  knob.addEventListener("pointerup",end);
+  knob.addEventListener("pointercancel",end);
+  knob.addEventListener("lostpointercapture",end);
+};
+attachKnob("freqKnob","freq");
+attachKnob("gainKnob","gain");
+attachKnob("qKnob","q");
 window.addEventListener("keydown",e=>{
   if(e.target.matches("input,select"))return;
   if((e.key==="Delete"||e.key==="Backspace")&&selected>=0){
