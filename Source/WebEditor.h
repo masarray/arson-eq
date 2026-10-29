@@ -17,6 +17,10 @@ public:
 private:
     class LocalBrowser final : public juce::WebBrowserComponent {
     public:
+        std::function<void()> onLoaded;
+        void pageFinishedLoading(const juce::String&) override {
+            if(onLoaded)onLoaded();
+        }
         explicit LocalBrowser(const juce::WebBrowserComponent::Options& options)
             : juce::WebBrowserComponent(options) {}
         bool pageAboutToLoad(const juce::String& url) override {
@@ -47,5 +51,6 @@ private:
     int framesSinceFFT_=0;
     int selected_=-1;
     bool ready_=false;
+    bool pageLoaded_=false;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArSonEQWebEditor)
 };

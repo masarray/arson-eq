@@ -12,7 +12,7 @@ juce::var makeObject() { return juce::var(new juce::DynamicObject()); }
 void property(juce::var& object,const char* key,juce::var value) {
     object.getDynamicObject()->setProperty(juce::Identifier(key),std::move(value));
 }
-juce::WebBrowserComponent::Options browserOptions(ArSonEQWebEditor* owner,
+juce::WebBrowserComponent::Options browserOptions(
     std::function<void(const juce::var&)> command,
     std::function<std::optional<juce::WebBrowserComponent::Resource>(const juce::String&)> resource) {
     using Web=juce::WebBrowserComponent;
@@ -36,13 +36,16 @@ bool ArSonEQWebEditor::supported() {
     // Do not silently fall back to legacy Internet Explorer: it can't run this
     // modern Canvas UI and would expose a blank / broken editor.
     using Web=juce::WebBrowserComponent;
+    if(juce::SystemStats::getEnvironmentVariable(
+        "ARSONEQ_USE_NATIVE_GUI","")=="1")
+        return false;
     return Web::areOptionsSupported(Web::Options{}
         .withBackend(Web::Options::Backend::webview2));
 }
 
 std::optional<juce::WebBrowserComponent::Resource>
 ArSonEQWebEditor::resource(const juce::String& url) {
-    const unsigned char* ptr=nullptr;
+    const char* ptr=nullptr;
     int length=0;
     juce::String mime;
     if(url=="/"||url=="/index.html") {
@@ -61,10 +64,14 @@ ArSonEQWebEditor::resource(const juce::String& url) {
 }
 ArSonEQWebEditor::ArSonEQWebEditor(ArSonEQAudioProcessor& p)
     : AudioProcessorEditor(p),processor_(p),
-      browser_(browserOptions(this,
+      browser_(browserOptions(
           [this](const juce::var& message){ onCommand(message); },
           [](const juce::String& url){ return resource(url); })) {
     setOpaque(true);
+    browser_.onLoaded=[this] {
+        pageLoaded_=true;
+        if(ready_)sendState(true);
+    };
     addAndMakeVisible(browser_);
     setResizable(true,true);
     setResizeLimits(820,490,1680,1000);
@@ -139,7 +146,11 @@ void ArSonEQWebEditor::gesture(int id,const juce::var& fields,bool begin) {
 void ArSonEQWebEditor::onCommand(const juce::var& message) {
     if(!message.isObject())return;
     const auto kind=message.getProperty("kind",{}).toString();
-    if(kind=="ready") {ready_=true;sendState(true);return;}
+    if(kind=="ready") {
+        ready_=true;
+        if(pageLoaded_)sendState(true);
+        return;
+    }
     const int id=static_cast<int>(message.getProperty("id",-1));
     if(kind=="select") {
         selected_=id>=0&&id<arson::eq::kMaxBands?id:-1;
@@ -164,7 +175,7 @@ void ArSonEQWebEditor::onCommand(const juce::var& message) {
     }
 }
 void ArSonEQWebEditor::sendState(bool response) {
-    if(!ready_)return;
+    if(!ready_||!pageLoaded_)return;
     auto value=makeObject();
     property(value,"rate",processor_.configuredSampleRate());
     juce::Array<juce::var> bands;
@@ -213,7 +224,7 @@ void ArSonEQWebEditor::sendSpectrum() {
         head_=(head_+1)&(fftSize_-1);
         ++framesSeen_;++framesSinceFFT_;++drained;
     }
-    if(!ready_||framesSeen_<fftSize_||framesSinceFFT_<1024)return;
+    if(!ready_||!pageLoaded_||framesSeen_<fftSize_||framesSinceFFT_<1024)return;
     framesSinceFFT_=0;
     for(int i=0;i<fftSize_;++i) {
         const auto pos=(head_+static_cast<size_t>(i))&(fftSize_-1);

@@ -26,7 +26,7 @@ function element(id) {
 }
 const ctx={
   fillRect(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},fill(){},
-  arc(){},save(){},restore(){},fillText(){},setTransform(){},
+  arc(){},closePath(){},save(){},restore(){},fillText(){},setTransform(){},
   createLinearGradient(){return{addColorStop(){}};}
 };
 const document={activeElement:null,

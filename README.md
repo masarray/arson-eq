@@ -44,3 +44,7 @@ On Windows, the editor prefers a **premium dark HTML/CSS/Canvas 2D UI** hosted b
 Control map: double-click empty canvas to create a bell filter, double-click an existing node to remove; drag for frequency/gain; wheel over a node for Q or cut slope; click for inspector; route filters to Stereo/L/R/Mid/Side; edit numeric frequency/gain/Q in the right inspector; Delete removes selected band. Native APVTS parameter IDs are not changed. The response curve is computed in the C++ DSP, and a bounded 25Hz FFT stream from the editor's native queue drives the input/output spectrum behind the curve.
 
 Source `WebUI/` is deliberately tiny and zero-dependency. Run `node --check WebUI/app.js && node WebUI/smoke.test.cjs` for an offline bridge wiring smoke check. This is NOT a substitute for actual DAW/WebView2 UI testing, host recall validation or CPU/memory profiling.
+
+### Windows fallback
+
+Set environment variable `ARSONEQ_USE_NATIVE_GUI=1` before launching your DAW to force the original JUCE native editor if WebView2 is unsupported or fails in the host. Restart the host to make it take effect. The embedded JS is not an audio dependency; DSP processing remains available without any GUI.
