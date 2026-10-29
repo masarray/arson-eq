@@ -1,0 +1,81 @@
+# ARD — ArSonEQ Architecture & Design Rules
+
+Version 0.1 · 2026-10-29 · Status: approved direction, implementation evolving
+
+## Design decisions
+
+**A1 — Native engine, not Web Audio:** Reimplement an independent C++17 DSP core with deterministic biquad coefficients. MaSonKuPik is a functional/UX reference, not a source tree to copy indiscriminately.
+
+**A2 — JUCE 9.0.4 for VST3 and native editor:** Use JUCE only for plug-in host integration, parameters, state and rendering. DSP owns no JUCE types. Pin external dependency version. The repo and the JUCE AGPL distribution path are compatible; commercial distribution requires a separate licence decision.
+
+**A3 — 24 fixed band slots, no dynamic audio allocations:** Each slot has type, frequency, gain, Q, cut slope, channel mode and enabled state. Keep parameter IDs stable even after a slot is removed in UI. Fixed max 4 stages for P0 cut filters.
+
+**A4 — Hard isolation of audio and UI:** Audio callback does no malloc/free, locks, network IO, console IO, GPU interaction, or file access. Parameter snapshots are read as atomics, and coefficients update only on changed values. UI can cache graph responses and throttle analyzer repainting independently.
+
+**A5 — Stereo M/S routing:** For each band transform L/R to M=(L+R)/2, S=(L-R)/2 only if that band's placement needs M/S; apply independent filter state to the selected route; reconstruct L=M+S, R=M-S. Never apply per-band M/S as a global widening effect. Mono input uses mono processing and disables meaningless Left/Right/Side routes as necessary.
+
+**A6 — Separate transfer functions from UI graphs:** Expose analytical magnitude response from the exact DSP coefficient generator. UI graph must use actual sample rate and its current processing mode, not a fabricated 48kHz Web Audio offline context.
+
+**A7 — Explicit progression of phase modes:** P0 direct causal minimum-phase biquad, zero algorithmic delay. P2 separate measured natural-phase alternative and latency-accounted linear-phase FIR. Do not claim a direct analog-copy of FabFilter algorithms.
+
+## Architecture
+
+```text
+DAW host
+  ├── VST3 wrapper (JUCE): buses, latency, automation, state, host lifetime
+  ├── ParameterAdapter: stable IDs, normalized ranges, bounded snapshots
+  ├── AudioProcessor (real-time): input → 24 fixed-band EQ → output
+  │      ├── biquad coefficient generator (RBJ topology + Butterworth stages)
+  │      ├── per-band L/R/M/S state, sanitized numerical limits
+  │      └── smoothing / topology transition policy
+  └── Editor (message thread): graph, nodes, inspector, cached response
+         └── optional RT-safe metering/FFT telemetry queue (future)
+```
+
+Portable DSP must be independently tested with a simple C++ test harness. It must not include Web Audio, JUCE, UI, JSON, or licensing code.
+
+## Signal flow / control
+
+1. Host writes normalized parameter values into APVTS atomics. On each block, processor reads a coherent-enough bounded snapshot per slot; each changed slot updates its target coefficients. A later revision may use immutable whole-bank snapshots for simultaneous multi-parameter changes.
+2. Each sample flows through enabled slots in stable numerical order, with independent state for L/R or M/S. All stereo transforms are per slot; no summing of nonidentical latency paths.
+3. Gain in dB converts to amplitude; cut filters are Butterworth cascades using the MaSonKuPik Q-stage array: 12 [0.70710678], 24 [0.5411961,1.30656296], 36 [0.51763809,0.70710678,1.93185165], 48 [0.50979558,0.60134489,0.89997622,2.56291545].
+4. For bell/shelf/notch calculate normalized biquad from RBJ Audio EQ Cookbook. Frequency/Q are bounded; every intermediate is finite; target coefficients computed at configuration changes, **never per sample**.
+5. Retune uses interpolation or a fully verified dual-pipeline crossfade to avoid zippering and instability. Shape/slope change needs separate discontinuity tests. A simple block-step rebuild is **not** a release-quality solution.
+6. Bypass is unity and preserves host state; transitions require crossfade/ramps, and full bypass must neither alter latency nor create clicks.
+7. On sample-rate changes, update all coefficients and reset/transition filter state predictably; on silence avoid denormal stalls.
+
+## Parameter contract
+
+For slot N, IDs are immutable `bNN_enabled`, `bNN_type`, `bNN_freq`, `bNN_gain`, `bNN_q`, `bNN_slope`, `bNN_route`. Type order: Bell, LowShelf, HighShelf, LowCut, HighCut, Notch. Route: Stereo, Left, Right, Mid, Side. Slope: 12,24,36,48. Safe defaults: disabled, bell, 1000 Hz, 0 dB, Q=1, slope=12, Stereo. Numbering and enum order are persistence APIs; do not reorder.
+
+Band ranges: 20 Hz–20 kHz (clamp to 45% SR), -24 to +24 dB, Q 0.1–24; visual options may expose more restricted zoom. Actual cutoff and response are sample-rate limited.
+
+Schema migration: a versioned host state tree will preserve current slot identity when changing GUI, FFT or dynamic features. Any later incompatible addition must be additive or migratable, never rename existing host parameter IDs.
+
+## Lifecycle and threading
+
+- Construction: allocate fixed states once. Prepare: set sample rate, initialize states. Process: no allocation and no throwing.
+- UI: repaints only on observed change; optional analyzer target 20–30 FPS. No unbounded `repaint()` loop or heavyweight effects; when editor closes, analysis stops.
+- For P1 FFT, use preallocated SPSC sample/tap queue and worker/UI drain; drop visual frames rather than block the audio callback. Ensure lock-free queue semantics and ownership with tests.
+- Offline render and host-initiated parameter automation must use the same DSP equations; no dependence on frame rate or wall clock.
+
+## Precision and verification
+
+For reference response test: compare analytical `H(e^{jw})` with measured sine sweep at 44.1/48/96/192 kHz and check normalized Biquad stability; verify 24 stages × two channels with random input finite. Test M/S symmetry, mono, disabled-band unity, impulse tail, repeatability, gain at band center, coefficient edge cases, and rapid-automation stress. Track max absolute error by mode.
+
+Before shipping: run Steinberg validator, JUCE pluginval, REAPER, and a second DAW; run Windows Defender scan on artifacts. Include licenses in binary distribution.
+
+## Design risk register
+
+| Risk | Mitigation |
+|---|---|
+| Browser DSP copy is not VST-ready | Port feature contract and verified math only |
+| Automation zipper/crackle | Per-sample coefficient smoothing and topology-specific crossfade QA |
+| GUI hover/FFT slowing real-time audio | Cached CPU draw, no GPU dependency for sound, throttled analyzer |
+| JUCE AGPL/commercial licensing | Publish source under AGPL, review commercial edition separately |
+| Nonzero-phase behavior misrepresented | Name only implemented modes, measure before enabling |
+| Parallel thread drift | PRD/ARD and CHANGELOG are canonical; small PRs with tests, no speculative rewrites |
+
+## Stage gates
+
+M0: repo structure, standalone DSP, unit tests, CMake; M1: VST3 adapter, host params, graph interaction and save state; M2: audited transitions, spectrum analyzer, host validation; M3: dynamic EQ; M4: phase variants/surround/other formats. Consult [ROADMAP.md](ROADMAP.md) for binary acceptance. Avoid costly CI on unneeded toolchains until the host wrapper exists.

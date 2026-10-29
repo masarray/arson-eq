@@ -1,0 +1,30 @@
+# ArSonEQ
+
+ArSonEQ is an original, open-source, professional parametric equalizer plug-in project. The goal is a fast, transparent, refined workflow comparable in capability to leading commercial EQs, **not** a clone of another product's source code, branding, or artwork.
+
+**Status: M0 foundation, under active development. Not yet a release-quality replacement for Pro-Q 3.**
+
+## Source and architecture
+
+The initial reference is [MaSonKuPik](https://github.com/masarray/masonkupik), another project owned by the maintainer. Its Web Audio/TypeScript EQ interaction model and Butterworth filter settings inform ArSonEQ, but the browser graph is **not** a native VST engine. Native DSP is independently implemented in portable C++17, and JUCE 9 supplies the plug-in wrapper and UI. No compressor, limiter, exciter, or web runtime is bundled into the EQ.
+
+- [Product requirements](docs/PRD.md)
+- [Architecture and real-time design](docs/ARD.md)
+- [Migration audit and provenance](docs/MIGRATION.md)
+- [Implementation milestones and acceptance gates](docs/ROADMAP.md)
+
+## Build direction
+
+- Initial target: Windows x64 VST3; macOS VST3/AU subsequently.
+- CMake 3.24+, C++17, JUCE **9.0.4 pinned** (no floating HEAD). An installed local JUCE checkout can be selected with `JUCE_SOURCE_DIR`.
+- Headless C++ DSP tests build without downloading JUCE.
+- Configure: `cmake -S . -B build -DARSONEQ_BUILD_PLUGIN=OFF -DARSONEQ_BUILD_TESTS=ON`
+- Test: `cmake --build build --config Release && ctest --test-dir build --output-on-failure -C Release`
+- Plug-in: `cmake -S . -B build-vst -DARSONEQ_BUILD_PLUGIN=ON -DARSONEQ_BUILD_TESTS=ON`; then `cmake --build build-vst --config Release`.
+- If no local JUCE source is supplied, the plug-in configuration fetches pinned JUCE from GitHub. A connection is necessary only at configure time, not when running the plug-in.
+
+## License and dependencies
+
+This repository already uses **AGPL-3.0** (see LICENSE). JUCE 9 modules are offered under AGPLv3 or separate commercial terms. This project uses the AGPL path for the open-source edition. **A commercial JUCE licence may be required** for a future proprietary/closed-source edition. Steinberg VST 3 SDK 3.8+ is MIT-licensed; trademark requirements are separate. Verify all third-party dependencies and source provenance before redistribution.
+
+FabFilter and Pro-Q are trademarks of their respective owner, which is not affiliated with ArSonEQ. There is no FabFilter intellectual property or GUI artwork in this repository.
