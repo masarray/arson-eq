@@ -59,3 +59,14 @@ Controls: single-click a node to select and open floating controls; click empty 
 
 ### Compact editor controls (M2.1)
 The primary 900×535 Windows WebView2 GUI uses a single edge-to-edge frequency graph and a contextual floating inspector. Click a node to open filter type, frequency/gain/Q rotary and numeric edits, slope, stereo/Mid/Side route, bypass and delete; close the inspector for a fully unobstructed graph. Rotate a control by dragging vertically or use precise numeric inputs. The ANALYZER switch disables the native audio telemetry and UI FFT work when OFF. For debugging fallback: launch the DAW with `ARSONEQ_USE_NATIVE_GUI=1`.
+
+
+## M2.2 — TWO Windows deliverables: VST3 + Standalone EXE
+
+The Windows Release job **builds both** `ArSonEQ_VST3` and `ArSonEQ_Standalone` from the same JUCE AudioProcessor, 24-band C++ DSP, WebView2 GUI and 168 stable host parameter IDs. These are different binary formats, not two GUIs or a separate browser website.
+
+- **VST3**: `ArSonEQ.vst3` bundle; copy its complete folder to `C:\Program Files\Common Files\VST3\`; restart/rescan ArSonMix, REAPER, or another VST3 host.
+- **Standalone EXE**: `ArSonEQ.exe`; launch directly on Windows x64. It does **not** load other VSTs; it is a standalone EQ audio application. Select the desired input/output audio devices using the standard JUCE standalone audio settings. For processing a microphone or external audio feed, configure a real input source and output monitor; simply starting the EXE does not route system-wide playback through the EQ.
+- **Both**: use the same offline-embedded WebView2 interface and require Microsoft Edge WebView2 Runtime. To force the simpler native fallback UI, set `ARSONEQ_USE_NATIVE_GUI=1` in the environment *before* launching the EXE or DAW.
+
+A combined **Windows x64 engineering test ZIP** contains `VST3/`, `Standalone/`, `BUILD.txt` and `README_WINDOWS_TEST.txt`. Both formats compile in **one shared CI job** (pinned JUCE and WebView2 SDK, one CMake configure and native DSP tests). A build PASS does not prove soundcard support or host runtime behavior: physical ASIO/WASAPI audio checks, DAW recall, pluginval, GUI screenshot and CPU profiling remain separate release gates.

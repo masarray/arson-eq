@@ -83,3 +83,8 @@ For the primary 900×535 editor, neither graph nor X labels may clip. No permane
 
 
 - **P1 rotary interaction:** Frequency, Gain and Q each have a compact visible tactile rotary control (plus numeric editing) in the floating inspector, with native host automation gesture boundaries. Q and frequency use logarithmic response, gain linear. Cut filters disable irrelevant Gain. Analyzer OFF must stop real-time telemetry and FFT work, not just hide the spectrum.
+
+
+## M2.2 dual-format deliverables (release gate)
+
+Windows builds must always generate BOTH a Windows x64 `ArSonEQ.vst3` folder and a directly runnable `ArSonEQ.exe`. Both must use the identical native DSP engine, 24-band parameter set, GUI, and preset/state contract. Standalone must expose device selection via JUCE standard audio configuration; it must never claim to process all system playback without an actual input/output route. CI must package both binaries and fail if either output is missing. Passing compilation alone is insufficient: test real audio input/output, save/reopen, GUI window lifecycle and available audio drivers on physical Windows before release.

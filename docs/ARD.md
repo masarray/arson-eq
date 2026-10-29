@@ -131,3 +131,10 @@ The floating inspector includes three tactile rotary controls for frequency, gai
 The ANALYZER switch sends a native `spectrum` command. When off, `AnalyzerQueue::setEnabled(false)` atomically shuts off audio telemetry production, and the message-thread FFT/send loop is skipped; when on, telemetry resumes. Closing the editor still disables the queue. This prevents unnecessary audio-to-UI data and expensive FFT work when the user wants a still EQ curve. This is a source-level optimization and must be validated with actual Windows WebView2 CPU measurements.
 
 Smoke coverage checks knob Q gesture, native UI event paths, spectrum ON/OFF command, full-width graph, no permanent sidebar, popup placement, and popup/menu lifecycle. CI workflow paths include UI assets (build) and all WebUI test changes (headless), without rebuilding JUCE for a test-file-only edit.
+
+
+## M2.2 — Dual-target native Windows delivery
+
+The exact same `juce_add_plugin(ArSonEQ ... FORMATS VST3 Standalone)` shared source set produces (1) a real VST3 plugin bundle for third-party hosts, and (2) a true native Windows `ArSonEQ.exe` using JUCE's official Standalone plugin wrapper and audio-device lifecycle. This avoids creating a second competing processor/GUI code path, avoids a wrapper webserver or Electron process, and prevents hardcoding Windows device APIs. Windows audio I/O belongs to JUCE Standalone: device selection and permissions follow the runtime/OS. Browser assets are binary resources embedded into each target; no localhost server or external assets.
+
+The CI compiles both targets under ONE configured JUCE build graph, runs the same three native DSP suites, verifies nontrivial EXE and VST3 module outputs, and uploads **one combined test bundle** with a commit SHA manifest. Only native DSP C++ source and plugin client wrapper differ at link time. Test audio-device initialization, system-exclusive modes, auto/manual input selection, actual ASIO/WASAPI drivers, and persistence on Windows real hardware before advertising the Standalone app as production ready. The VST3 and Standalone executables should not be mixed or installed into each other's folders.

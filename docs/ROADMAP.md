@@ -57,3 +57,12 @@ Do not mark M2 DAW-validated based solely on the Windows compilation or mock-DOM
 - [x] Floating native-web inspector now has tactile frequency/gain/Q rotary controls with host gesture lifecycle.
 - [x] Analyzer OFF atomically gates audio telemetry and skips editor FFT.
 - [x] Local mock-bridge UI smoke passed for rotary, full-canvas inspector, menu and analyzer gating; Windows VST3 final build remains subject to CI and real DAW review.
+
+
+### M2.2: Native Windows dual-format output
+
+- [x] CMake JUCE target graph declares VST3 **and** Standalone from one shared processor + editor.
+- [x] One Windows Release workflow builds both, runs all native DSP tests, verifies both artifacts, packages the EXE and VST3 together with commit manifest and installation README.
+- [ ] Confirm CI produces both and the exact ZIP matches the commit.
+- [ ] Run Standalone on real Windows input/output devices; test WASAPI/ASIO audio settings, microphone processing, sample-rate changes, persistent states and GUI windows.
+- [ ] Run VST3 inside ArSonMix/REAPER and pluginval; test automation, multiple instances and DAW restore.

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(ArSonEQ VERSION 0.1.0 LANGUAGES C CXX)
 
-option(ARSONEQ_BUILD_PLUGIN "Build VST3 plugin using JUCE" OFF)
+option(ARSONEQ_BUILD_PLUGIN "Build JUCE VST3 plugin and native Standalone application" OFF)
 option(ARSONEQ_BUILD_TESTS "Build standalone DSP unit tests" ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -48,7 +48,9 @@ if(ARSONEQ_BUILD_PLUGIN)
         BUNDLE_ID "com.arsonaudio.arsoneq"
         PLUGIN_MANUFACTURER_CODE ArsN
         PLUGIN_CODE ArEQ
-        FORMATS VST3
+        # One shared processor/editor implementation for both deliverables.
+        # Standalone is a native Windows executable, NOT a web page.
+        FORMATS VST3 Standalone
         VST3_CATEGORIES Fx EQ
         IS_SYNTH FALSE
         NEEDS_MIDI_INPUT FALSE
@@ -61,7 +63,7 @@ if(ARSONEQ_BUILD_PLUGIN)
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp)
     if(WIN32)
-        # Browser UI is plain static HTML/CSS/JS embedded in the VST3.
+        # Browser UI is plain static HTML/CSS/JS embedded in BOTH formats.
         # No Node/React/vite/npm at runtime and no local web server.
         juce_add_binary_data(ArSonEQWebAssets SOURCES
             WebUI/index.html WebUI/style.css WebUI/app.js)
