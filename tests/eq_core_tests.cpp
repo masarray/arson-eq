@@ -123,7 +123,9 @@ int main() {
         }
         require(live.band(0).frequency==5000.,"dynamic detector follows frequency automation");
         require(live.dynamicActivity(0)>0.35f,"retuned 5kHz detector measures 5kHz energy");
-        for(int n=0;n<30000;++n){double z=0.;live.processMono(z);}
+        // The detector smooths *power*, so RMS falls with twice the power
+        // time constant. Allow 2 seconds of silence to test the release tail.
+        for(int n=0;n<96000;++n){double z=0.;live.processMono(z);}
         require(live.dynamicActivity(0)<0.1f,"dynamic wet decays on silence");
     }
     // Invalid values must be sanitized at the boundary.
