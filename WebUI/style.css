@@ -1,0 +1,291 @@
+/* ArSonEQ M2.3 - compact non-obscuring instrument deck.
+   Visual language: ArSonMix metal/glass; interaction language: professional
+   logarithmic EQ. No transitions, backdrop-filter, React or remote assets. */
+:root{color-scheme:dark;--glass:#151923;--graph:#19171f;--line:#37333f;--ink:#e7e9ec;
+  --sub:#98a0ad;--soft:#728092;--gold:#eac66f;--cyan:#64d8e8;--green:#6fd7a0;
+  --metal1:#78828d;--metal2:#333b46;--metal3:#141d27}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#0d1118;color:var(--ink);
+  font:11px "Segoe UI",Arial,sans-serif;user-select:none;-webkit-user-select:none}
+button,select,input{font:inherit}button{cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:1px solid #79d8e9;outline-offset:1px}
+button:disabled,input:disabled,select:disabled{opacity:.43;cursor:default}
+button:hover:not(:disabled){border-color:#91a4b5}
+[hidden]{display:none!important}
+#app{display:flex;flex-direction:column;width:100%;height:100%;min-width:700px;min-height:420px;background:#12151e}
+
+/* Short anodized-aluminum header. The user's music remains the hero. */
+.top{height:42px;flex:0 0 42px;display:flex;align-items:center;gap:10px;padding:0 12px;
+  background:linear-gradient(180deg,#363c47,#242a34 52%,#1b222d 53%,#202935);
+  border-bottom:1px solid #515463;box-shadow:inset 0 1px #626b78,0 2px 6px #0008;z-index:5}
+.brand{display:flex;align-items:center;gap:6px;min-width:190px;white-space:nowrap}
+.brand-glyph{font-size:20px;line-height:22px;font-weight:800;letter-spacing:-3px;color:#f5faff}
+.brand-glyph span{color:#62dbed;font-size:9px;margin-left:2px}
+.brand-name{font-size:19px;font-weight:760;letter-spacing:-1.3px;color:#f4f5f9}
+.brand-name span{color:var(--cyan);font-weight:400}
+.brand-separator{width:1px;height:18px;background:#58616c;margin:0 2px}
+.brand-caption{font-size:8px;letter-spacing:1.2px;color:#a1a7b0}
+.preset-center{min-width:160px;max-width:300px;flex:1;height:24px;display:flex;
+  align-items:center;justify-content:space-between;gap:8px;padding:0 8px;
+  border:1px solid #414b5a;border-radius:4px;background:linear-gradient(#151b27,#202736);
+  color:#b7c0cc;font-size:9px;letter-spacing:.5px;box-shadow:inset 0 1px 4px #0006}
+#stateInfo{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.preset-arrows{font-size:16px;color:#8c98a4}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+.bar-button,.help-button{height:25px;border:1px solid #626d79;border-radius:4px;
+  background:linear-gradient(#c9d1d4,#9eacb4 48%,#71838c 49%,#aebdc3);
+  box-shadow:inset 0 1px #fff9,0 1px 2px #0006;color:#1b3443;font-size:9px;
+  font-weight:730;letter-spacing:.3px;padding:0 9px}
+.bar-button b{color:#295469;font-weight:700;margin-left:3px}
+.bar-button.active #spectrumStatus{color:#075f4b;font-weight:850}
+.help-button{width:25px;padding:0;font-size:12px}
+
+/* The graph and dock are SIBLINGS. No editing control may cover a graph pixel. */
+.workspace{flex:1;min-height:0;display:flex;flex-direction:column;align-items:stretch;overflow:hidden;
+  background:radial-gradient(ellipse at 50% -10%,#2b2a35,#171c26 70%,#111823)}
+.graph-wrap{width:100%;flex:1;min-height:0;position:relative;overflow:hidden;touch-action:none;
+  background:var(--graph);border-bottom:1px solid #41404b}
+.graph-wrap canvas{display:block;width:100%;height:100%;cursor:crosshair}
+.graph-hud{position:absolute;top:8px;left:13px;right:105px;display:flex;
+  align-items:center;justify-content:space-between;gap:12px;pointer-events:none}
+.graph-mode{font-size:9px;letter-spacing:1.2px;font-weight:700;color:#a7a5ad}
+.graph-cyan{display:inline-block;width:5px;height:5px;border-radius:50%;margin-left:6px;
+  background:var(--cyan)}
+.graph-info{font:10px Consolas,monospace;color:#93949f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.axis-hint{position:absolute;right:8px;top:24px;color:#a0a0b1;font:9px Consolas,monospace}
+.graph-overlay{position:absolute;pointer-events:none;z-index:3;padding:6px 8px;
+  border:1px solid #60616f;border-radius:4px;background:#282731f0;
+  box-shadow:0 4px 12px #000a;font:10px Consolas,monospace;white-space:nowrap;color:#f1f0ee}
+
+/* Compact editable control island BELOW the graph: no position:absolute.
+   Its height is fixed so window resize never pushes controls out of frame. */
+.inspector{position:relative;flex:0 0 148px;min-height:148px;
+  align-self:center;width:min(570px,calc(100% - 26px));margin:0 auto 7px;padding:0 12px 7px;
+  border:1px solid #515663;border-radius:10px;color:#dfe5ec;
+  background:linear-gradient(160deg,#34333b 0%,#292b35 30%,#212a35 75%,#182430 100%);
+  box-shadow:inset 0 1px #777580,0 1px 0 #121720,0 6px 16px #0009}
+.inspector::before{content:"";position:absolute;inset:1px;border:1px solid #33384290;
+  border-radius:9px;pointer-events:none}
+.inspector-top{height:26px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid #5c606a72}
+.identity,.inspector-actions{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.identity{font-size:10px;font-weight:750;letter-spacing:.5px}
+.identity i{width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 7px #a8acb766}
+.channel-badge{font-size:8px;font-weight:500;letter-spacing:.5px;color:#b9c5d1;
+  background:#242b35;border:1px solid #4b5562;border-radius:3px;padding:2px 5px}
+.inspector-actions button{height:21px;min-width:24px;padding:0 6px;color:#d5dbe1;
+  border:1px solid #666a72;border-radius:3px;background:linear-gradient(#59616b,#343d48)}
+.inspector-actions #enableBtn{color:#86efc3;border-color:#48766d;font-weight:800}
+.inspector-actions #enableBtn.off{color:#c7b8ad;border-color:#71635e}
+.inspector-actions #removeBtn{font-size:14px;color:#e6abb0}
+.inspector-actions #closeInspector{font-size:13px}
+.band-inspector{padding-top:5px}
+.parameter-row{display:grid;grid-template-columns:1.24fr 1fr 1fr .85fr;gap:10px;align-items:start}
+.parameter{display:block;position:relative;min-width:0;color:#a6a6ae;font-size:8px;
+  font-weight:700;letter-spacing:1px;text-align:center}
+.parameter select,.number{margin-top:3px;height:23px;width:100%;min-width:0;border:1px solid #5b6773;border-radius:4px;
+  background:linear-gradient(#141d29,#2a3440);color:#f4f5fa;box-shadow:inset 0 1px 2px #0007}
+.parameter select{padding:0 7px;font-size:10px;letter-spacing:0;cursor:pointer}
+.shape-glyph{display:grid;place-items:center;height:28px;margin:1px auto;color:#88dbd5;
+  font-size:24px;line-height:28px}
+.knob-face{display:block;position:relative;width:34px;height:34px;margin:2px auto 0;
+  border:2px solid #586676;border-radius:50%;cursor:ns-resize;touch-action:none;
+  background:radial-gradient(circle at 35% 25%,#87929e,#465361 40%,#1b2632 71%,#090f17);
+  box-shadow:inset 0 1px 2px #e7edf099,inset 0 -2px 4px #030810,0 2px 2px #000b}
+.knob-face::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid #485464}
+.knob-face::after{content:"";position:absolute;left:50%;top:50%;height:7px;width:3px;border-radius:3px;
+  background:#67e4e8;transform:translate(-50%,-50%) rotate(var(--angle,-140deg)) translateY(-13px);
+  box-shadow:0 0 5px #57d5dc}
+.knob-face.gain::after{background:var(--gold);box-shadow:0 0 6px #e7ba5c}
+.knob-face.q::after{background:#d1e1ee}
+.knob-face:hover{border-color:#85cad7}
+.number{display:flex;align-items:center;gap:3px;padding:0 6px}
+.number input{min-width:0;width:100%;border:0;outline:0;background:transparent;text-align:center;
+  color:#f0f2f6;font-weight:700;font-size:11px}
+.number span{font:9px Consolas,monospace;color:#9daabb}
+.number input::-webkit-inner-spin-button{-webkit-appearance:none}
+.number:focus-within{border-color:#75d6e2}
+.inspector-bottom{display:flex;justify-content:space-between;align-items:end;gap:10px;
+  margin-top:6px;padding-top:5px;border-top:1px solid #545c6970}
+.channel-wrap>span,.slope-wrap,.note-info>span{display:block;color:#a2a9b4;
+  font-size:8px;letter-spacing:.8px;font-weight:700}
+.channel-wrap{min-width:180px}
+.route-group{display:flex;gap:3px;margin-top:3px}
+.route-group button{min-width:28px;height:20px;padding:0 5px;font-size:9px;
+  border:1px solid #5b6775;border-radius:3px;color:#b5bfcc;background:linear-gradient(#3c4a58,#222e3a)}
+.route-group button.active{border-color:#54adc4;color:#effcff;background:linear-gradient(#2c7c93,#12516b)}
+.slope-wrap{min-width:72px}.slope-wrap select{display:block;width:100%;height:20px;margin-top:3px;
+  border:1px solid #566475;border-radius:3px;background:#23313f;color:#d2dce6;font-size:9px}
+.note-info{min-width:42px;text-align:right}.note-info b{display:block;margin-top:5px;
+  font:12px Consolas,monospace;color:var(--gold)}
+
+/* Drop-down overlays only for optional band navigation/help; never the EQ edit panel. */
+.band-list,.quick-help{position:absolute;z-index:8;right:12px;top:8px;border-radius:5px;
+  border:1px solid #5c6b7a;background:linear-gradient(#2b3a49,#1b2835);
+  box-shadow:0 8px 22px #000a}
+.band-list{width:260px;padding:10px;max-height:80%}
+.popup-head{display:flex;justify-content:space-between;gap:6px;font-size:10px;
+  padding-bottom:7px;border-bottom:1px solid #526071;font-weight:700}
+.popup-head span{font-size:8px;color:#91a1b0}
+.band-rail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;
+  max-height:230px;overflow:auto;padding-top:8px}
+.band-chip{height:26px;border:1px solid #536e7b;border-radius:3px;
+  background:#253f4f;color:#d2e4ee;font:10px Consolas,monospace}
+.band-chip.selected{border-color:#d2dce1}
+.quick-help{width:246px;padding:12px}
+.quick-help b{color:#80dfe8;letter-spacing:1px}
+.quick-help p{font-size:10px;margin:9px 0;color:#c1d0d9}
+
+/* Low visual noise; does not compete with a 0 dB axis. */
+.bottom-bar{flex:0 0 25px;height:25px;display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:0 11px;border-top:1px solid #4b5360;
+  background:linear-gradient(#303945,#1a2531);box-shadow:inset 0 1px #485664;
+  color:#a7b5c3;font:9px "Segoe UI",Arial,sans-serif}
+.footer-left,.footer-center,.footer-right{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.signal-flag{font-weight:700;letter-spacing:.3px;color:#d0d9e3}
+.signal-flag i{display:inline-block;width:5px;height:5px;margin-right:4px;border-radius:50%;background:#6ce4ab}
+.footer-divider{width:1px;height:10px;background:#5a6877}
+#bridgeStatus{max-width:170px;overflow:hidden;text-overflow:ellipsis;color:#95aabc}
+.footer-center{font-size:8px;letter-spacing:.5px}
+.legend-mark{display:inline-block;width:5px;height:5px;border-radius:50%}
+.legend-mark.pre{background:#8c91a6}.legend-mark.post{background:#71dca6}
+.legend-mark.curve{background:#f5c873}
+.footer-right{color:#b4bac5}.footer-right b{font-size:8px;letter-spacing:1px;color:#72cbda}
+@media(max-width:840px){.brand{min-width:150px}.brand-caption{display:none}
+  .preset-center{min-width:120px}.bar-button{padding:0 6px}.footer-center{display:none}}
+@media(max-height:510px){.inspector{flex-basis:138px;min-height:138px;margin-bottom:3px}
+  .inspector-bottom{margin-top:3px;padding-top:3px}.knob-face{height:27px;width:27px}}
+
+
+/* M2.4: main EQ plot remains dominant (~390-410px at 535px editor).
+   Advanced controls use reserved height, never overlay any EQ node. */
+.inspector{flex:0 0 70px;min-height:70px;margin-bottom:3px;padding:0 11px 4px;width:min(630px,calc(100% - 22px))}
+.inspector-top{height:21px}
+.band-inspector{padding-top:3px}
+.parameter-row{grid-template-columns:1.3fr 1fr 1fr .85fr;gap:8px}
+.parameter{font-size:8px;text-align:left;letter-spacing:.65px}
+.parameter select,.number{height:25px;margin-top:2px}
+.shape-glyph,.knob-face,.inspector-bottom{display:none}
+.inspector.expanded{flex:0 0 151px;min-height:151px;padding-bottom:7px;margin-bottom:6px}
+.inspector.expanded .knob-face{display:block}
+.inspector.expanded .shape-glyph{display:grid}
+.inspector.expanded .inspector-bottom{display:flex}
+.inspector.expanded .parameter{text-align:center}
+.inspector.expanded .band-inspector{padding-top:5px}
+.inspector-actions #advancedBtn{font-size:9px;min-width:50px;color:#b9dbeb}
+.analyzer-menu{position:absolute;z-index:9;top:34px;right:70px;width:315px;
+  background:linear-gradient(#2b313b,#161d27);border:1px solid #5a6471;
+  padding:12px;border-radius:6px;box-shadow:0 9px 24px #000a}
+.analyzer-title{display:flex;justify-content:space-between;align-items:center;color:#e5e9ef;
+  font-size:10px;font-weight:750;letter-spacing:.7px;margin-bottom:12px}
+.analyzer-title span{font-size:9px;color:#8fa5b5;font-weight:400;letter-spacing:0}
+.analyzer-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.analyzer-options label{font-size:9px;color:#adbdca;font-weight:700}
+.analyzer-options select{display:block;width:100%;height:28px;margin-top:4px;
+  color:#e5f2f7;background:#223543;border:1px solid #5c6e7b;border-radius:4px}
+.analyzer-switches{display:flex;justify-content:space-between;margin:12px 0 9px;color:#c8deeb;
+  border-top:1px solid #40525e;padding-top:10px}
+.analyzer-switches label{cursor:pointer}
+.analyzer-switches input{accent-color:#6bd2c1;vertical-align:middle}
+.analyzer-menu small{font-size:9px;color:#8b9eab}
+@media(max-height:510px){.inspector{flex-basis:70px;min-height:70px}
+  .inspector.expanded{flex-basis:140px;min-height:140px}}
+
+/* M2.5 composited Band Inspector: zero flex reflow, static EQ coordinates. */
+.workspace{display:flex;flex-direction:column;position:relative}
+.graph-wrap{flex:1 1 auto;min-height:0;isolation:isolate}
+.inspector{position:absolute;z-index:7;top:auto;bottom:13px;left:13px;
+ flex:none;min-height:0;height:70px;width:min(630px,calc(100% - 26px));
+ margin:0;padding:0 11px 4px;align-self:auto;max-width:none;
+ box-shadow:inset 0 1px #777580,0 1px 0 #121720,0 9px 25px #000b;
+ transform:translateZ(0);will-change:auto}
+.inspector.expanded{flex:none;min-height:0;height:151px;padding-bottom:7px;margin:0}
+.history-button{min-width:31px!important;font-size:17px!important;padding:0 4px!important}
+.history-button:disabled{opacity:.42}
+.inspector .identity{letter-spacing:.4px}
+.inspector .parameter-row{gap:8px}
+@media(max-height:510px){.inspector{height:70px}.inspector.expanded{height:140px}}
+.band-context{position:absolute;z-index:12;width:166px;padding:5px;
+ border-radius:5px;border:1px solid #6b7683;
+ background:linear-gradient(#303843,#192633);box-shadow:0 10px 28px #000b}
+.band-context button{display:block;width:100%;min-height:28px;border:0;
+ border-bottom:1px solid #3c4b584d;background:transparent;
+ padding:5px 8px;text-align:left;font-size:10px;color:#d9e6ec;
+ font-weight:650;letter-spacing:.25px}
+.band-context button:last-child{border-bottom:0}
+.band-context button:hover{background:#3c6473;color:#fff}
+
+/* M3 integrated presets, discoverable filter types, real dynamic controls.
+   Presets do not crowd the plot: all widgets are inside the original chrome. */
+.preset-center{flex:1 1 250px;min-width:195px;max-width:330px;gap:4px;padding:0 4px}
+#presetSelect{min-width:0;flex:1 1 auto;height:22px;border:0;
+ background:transparent;color:#dce8f4;font-size:10px;font-weight:650;text-align:center}
+#presetSelect option{background:#1d2a37;color:#e6eef5}
+.preset-nav{border:0;background:transparent;color:#bdd1df;min-width:20px;
+ height:22px;font-size:18px;line-height:16px;font-weight:650}
+.preset-save{height:21px;padding:0 7px;border:1px solid #577889;border-radius:3px;
+ background:linear-gradient(#334f60,#1b3341);color:#d1eef9;font-size:9px;font-weight:800}
+#saveSlot{height:21px;max-width:68px;flex:0 0 68px;font-size:9px;
+ border:1px solid #405967;color:#d5e5ee;background:#233744;border-radius:3px}
+.preset-nav:hover,.preset-save:hover{background:#496b79;color:white}
+.inspector.expanded{height:231px}
+@media(max-height:510px){.inspector.expanded{height:231px}}
+.shape-picker,.dyn-controls{display:none}
+.inspector.expanded .shape-picker{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));
+ gap:3px;padding:7px 1px 5px}
+.shape-picker button{height:22px;min-width:0;border:1px solid #576675;background:#202f3c;
+ color:#a8c4d2;border-radius:3px;font-size:8px;letter-spacing:0;font-weight:700;cursor:pointer}
+.shape-picker button.active{border-color:#8dd7e5;background:#376273;color:white}
+.inspector.expanded .dyn-controls{display:flex;align-items:center;gap:8px;
+ min-height:34px;padding:3px 4px;background:#152430a6;border:1px solid #3d5464;border-radius:4px}
+.dyn-controls b{font-size:9px;letter-spacing:.4px;color:#65cfe5;white-space:nowrap}
+.dyn-controls label{display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;
+ font-size:8px;color:#b7c5d2}
+.dyn-controls input{width:54px;height:24px;background:#233947;color:#f4faff;
+ border:1px solid #516d7c;border-radius:3px;padding:0 3px;text-align:center}
+#dynStatus{font-size:8px;color:#85e4b6;margin-left:auto}
+.inspector.expanded .inspector-bottom{padding-top:7px}
+
+/* M3.1 responsive instrument UI: dark menus rendered by our own DOM, not
+   platform-native select popups (Windows white theme cannot bleed through). */
+.preset-center{position:relative;overflow:visible;max-width:337px;flex:1 1 260px}
+.preset-picker-button{flex:1 1 auto;min-width:65px;height:22px;border:0;
+ background:transparent;color:#e7eaf0;text-align:center;font-weight:700;
+ font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ letter-spacing:.04em}
+.preset-picker-button:hover{background:#2e4959}
+.dark-menu{position:absolute;z-index:90;padding:6px;border:1px solid #596a7e;
+ border-radius:5px;background:#1b2937;color:#e4eef8;
+ box-shadow:0 14px 30px #000d;max-height:300px;overflow-y:auto;scrollbar-color:#496478 #182736}
+.dark-menu button{display:block;width:100%;background:transparent;
+ border:1px solid transparent;border-radius:3px;padding:7px 9px;
+ min-height:28px;white-space:nowrap;text-align:left;
+ font-size:10px;font-weight:600;color:#cbdce9}
+.dark-menu button:hover,.dark-menu button.selected{background:#345b70;color:#fff;
+ border-color:#6b9aad}
+.preset-options{top:31px;left:16px;width:230px;max-height:305px}
+.inspector{width:min(484px,calc(100% - 26px));height:70px}
+.inspector.expanded{height:142px}
+@media(max-height:510px){.inspector.expanded{height:142px}}
+.parameter.shape{position:relative}
+.type-picker-button{display:block;margin-top:4px;height:25px;width:100%;
+ border:1px solid #5b6d7c;border-radius:3px;background:#1b2d3a;
+ color:#edf4fa;text-align:left;padding:0 9px;font-size:10px;font-weight:700}
+.type-picker-button:hover{background:#36586a;border-color:#9bd9ea}
+.type-options{z-index:100;position:absolute;bottom:32px;left:-4px;
+ width:250px;max-height:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.type-options button{text-align:center;font-size:9px;white-space:normal;
+ padding:5px 2px;line-height:12px;min-height:34px}
+.inspector.expanded .shape-picker{display:none!important}
+.inspector.expanded .dyn-controls{display:flex;min-height:35px;height:35px;gap:7px;
+ padding:4px 5px;margin-top:6px}
+.inspector.expanded .inspector-bottom{padding-top:6px}
+.dyn-controls b{font-size:9px}
+.dyn-controls label{font-size:8px}
+#dynStatus{min-width:40px;text-align:right;font-size:10px;color:#90a9b7;
+ font-variant-numeric:tabular-nums}
+#dynStatus.active{color:#e7b5f4}
+.dyn-meter{width:38px;min-width:38px;height:6px;background:#243543;
+ border-radius:4px;border:1px solid #486071;overflow:hidden}
+.dyn-meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4eb8d6,#bd76e6);
+ border-radius:4px}
