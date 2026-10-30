@@ -27,3 +27,11 @@ The BUILD.txt manifest identifies the exact source commit used.
 LICENSING: GNU AGPLv3 / JUCE 9.0.4; see repository LICENSE.
 
 M2.5 engineering test: floating band card (no graph reflow), Ctrl+click group selection, Shift precision drag, Ctrl+Z/Y undo/redo, right-click context menu. Test 100% and 150% Windows DPI; verify same VST3 and Standalone controls. This is not a production-signed installer.
+
+M3 real preset and dynamic test:
+1) Center dropdown -> choose Factory "Vocal Presence": nodes must change; choose "Init / Flat" to reset.
+2) Set 1kHz Bell at 0dB static gain, dynamic range -6dB / threshold -40dBFS under MORE; inject 1kHz tone. Output must be reduced vs range=0; set threshold 0dBFS and attenuation should disappear.
+3) Open MORE > choose BPF, Tilt Shelf, Flat Tilt: confirm native response curves and measured audio.
+4) Set unique bands; choose SAVE destination USER 01, SAVE. Close VST3 and Standalone, reopen and select USER 01: state must return.
+5) Confirm no flicker/reflow; group move, preset recall, 100%/150% DPI; profile CPU with 24 active dynamic bands.
+Note: factory names/presets are original examples; auto threshold, phase variants, EQ Match and Spectrum Grab are not present.

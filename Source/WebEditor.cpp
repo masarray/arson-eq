@@ -114,13 +114,16 @@ void ArSonEQWebEditor::edit(int id,const juce::String& field,float value,bool us
     if(field=="freq") {key="freq";value=juce::jlimit(20.f,20000.f,value);}
     else if(field=="gain") {key="gain";value=juce::jlimit(-24.f,24.f,value);}
     else if(field=="q") {key="q";value=juce::jlimit(.1f,24.f,value);}
-    else if(field=="type") {key="type";value=std::round(juce::jlimit(0.f,5.f,value));}
+    else if(field=="type") {key="type";value=std::round(juce::jlimit(0.f,8.f,value));}
+    else if(field=="dynRange") {key="dynRange";value=juce::jlimit(-12.f,12.f,value);}
+    else if(field=="dynThreshold") {key="dynThreshold";value=juce::jlimit(-60.f,0.f,value);}
     else if(field=="route") {key="route";value=std::round(juce::jlimit(0.f,4.f,value));}
     else if(field=="slope") {key="slope";value=std::round(juce::jlimit(0.f,3.f,value));}
     else if(field=="enabled") {key="enabled";value=value>.5f?1.f:0.f;}
     if(!key)return; // strict field allow-list, no arbitrary host parameter access
     if(auto* param=processor_.parameters.getParameter(
         ArSonEQAudioProcessor::parameterId(id,key))) {
+        processor_.setPresetModified();
         if(useGesture)param->beginChangeGesture();
         param->setValueNotifyingHost(param->convertTo0to1(value));
         if(useGesture)param->endChangeGesture();
@@ -148,6 +151,19 @@ void ArSonEQWebEditor::onCommand(const juce::var& message) {
     if(kind=="ready") {
         ready_=true;
         if(pageLoaded_)sendState(true);
+        return;
+    }
+    if(kind=="presetLoad" || kind=="presetSave") {
+        const int index=static_cast<int>(message.getProperty("index",-1));
+        const bool ok=kind=="presetLoad"?
+            processor_.loadPreset(index):processor_.saveUserPreset(index);
+        auto reply=makeObject();
+        property(reply,"ok",ok);
+        property(reply,"operation",kind);
+        property(reply,"index",index);
+        property(reply,"name",ArSonEQAudioProcessor::presetName(index));
+        browser_.emitEventIfBrowserIsVisible("eq-preset-result",reply);
+        if(ok) { selected_=-1;sendState(true); }
         return;
     }
     if(kind=="spectrum") {
@@ -223,6 +239,7 @@ void ArSonEQWebEditor::onCommand(const juce::var& message) {
         setField(id,"type",0.f);setField(id,"route",0.f);
         setField(id,"q",1.f);setField(id,"slope",0.f);
         edit(id,"freq",freq,true);edit(id,"gain",gain,true);
+        edit(id,"dynRange",0.f,true);edit(id,"dynThreshold",-24.f,true);
         edit(id,"enabled",1.f,true);
         selected_=id;
         sendState(true);
@@ -243,9 +260,16 @@ void ArSonEQWebEditor::sendState(bool response) {
         property(item,"gain",b.gainDb);
         property(item,"q",b.q);
         property(item,"slope",arson::eq::stageCount(b.slope)-1);
+        property(item,"dynRange",b.dynamicRangeDb);
+        property(item,"dynThreshold",b.thresholdDb);
         bands.add(std::move(item));
     }
     property(value,"bands",std::move(bands));
+    property(value,"presetIndex",processor_.currentPreset());
+    juce::Array<juce::var> presets;
+    for(int i=0;i<ArSonEQAudioProcessor::presetCount;++i)
+        presets.add(ArSonEQAudioProcessor::presetName(i));
+    property(value,"presets",std::move(presets));
     if(response) {
         auto curves=makeObject();
         juce::Array<juce::var> l,r,c,b;

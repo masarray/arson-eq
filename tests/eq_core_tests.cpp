@@ -34,6 +34,38 @@ int main() {
     require(responseFor(b,12000)>5.5 && std::abs(responseFor(b,60))<0.1,"high shelf");
     b.type=Type::Notch;b.frequency=1200;
     require(responseFor(b,1200)<-80,"notch center");
+    // M3 filter shapes: 6 legacy IDs stable, additions are 6/7/8.
+    b.enabled=true;b.route=Route::Stereo;b.frequency=1000;b.q=1.0;
+    b.type=Type::BandPass;b.gainDb=0;
+    require(std::abs(responseFor(b,1000))<0.15,"bandpass center near unity");
+    require(responseFor(b,80)<-12&&responseFor(b,15000)<-12,"bandpass rejects extremes");
+    b.type=Type::TiltShelf;b.gainDb=6;
+    require(responseFor(b,100)<-2.0&&responseFor(b,10000)>2.0,"tilt signed opposite shelves");
+    b.type=Type::FlatTilt;
+    require(responseFor(b,100)<-2.0&&responseFor(b,10000)>2.0,"flat tilt shelves");
+    // Native real-time dynamics: independent detector and dynamic filter branch,
+    // sample-domain threshold should not change static response when inactive.
+    auto levelOf=[](double range,double threshold) {
+        Engine engine;engine.prepare(48000);
+        Band dyn;dyn.enabled=true;dyn.type=Type::Bell;dyn.frequency=1000;
+        dyn.gainDb=0;dyn.q=1.;dyn.dynamicRangeDb=range;dyn.thresholdDb=threshold;
+        engine.setBand(0,dyn);engine.prepare(48000);
+        double power=0;
+        for(int i=0;i<48000;++i){
+            double x=0.5*std::sin(2*kPi*1000*i/48000);
+            engine.processMono(x);
+            if(i>=24000)power+=x*x;
+            require(std::isfinite(x),"dynamic stays finite");
+        }
+        return std::sqrt(power/24000.);
+    };
+    const double dry=levelOf(0.,-40.),duck=levelOf(-6.,-40.);
+    const double under=levelOf(-6.,0.);
+    require(duck<dry*.82,"dynamic bell attenuates strong band signal");
+    require(std::abs(under-dry)<.015,"high manual threshold leaves weak signal unchanged");
+    // Existing VST parameter slots never change their filter type meanings.
+    require(static_cast<int>(Type::Notch)==5&&static_cast<int>(Type::BandPass)==6,
+            "filter type index backward compatibility");
     eq.prepare(48000);
     b.type=Type::Bell;b.gainDb=12;b.frequency=1000;b.route=Route::Mid;
     eq.setBand(0,b);

@@ -8,6 +8,7 @@ function element(id) {
   const events={},classes=new Set();
   const node={
     id,value:"",style:{setProperty(){}},className:"",textContent:"",hidden:false,
+    get options(){return this.children;},
     dataset:{},width:800,height:400,disabled:false,children:[],
     classList:{
       toggle(name){if(classes.has(name)){classes.delete(name);return false;}classes.add(name);return true;},
@@ -57,10 +58,14 @@ assert.ok(find("ready").length,"JS announces ready to native engine");
 assert.equal(typeof handlers["eq-state"],"function");
 assert.equal(typeof handlers["eq-spectrum"],"function");
 const bands=Array.from({length:24},(_,i)=>({
-  enabled:i<2,type:0,route:0,freq:i===0?1000:5000,gain:i===0?6:2,q:1,slope:0
+  enabled:i<2,type:0,route:0,freq:i===0?1000:5000,gain:i===0?6:2,q:1,slope:0,
+  dynRange:0,dynThreshold:-24
 }));
 const curve=Array(256).fill(0);
-handlers["eq-state"]({bands,rate:48000,curve:{l:curve,r:curve,cross:curve,band:curve}});
+handlers["eq-state"]({bands,rate:48000,curve:{l:curve,r:curve,cross:curve,band:curve},
+  presets:["Init / Flat","Clean Vocal","Vocal Presence","Warm Vocal","De-Esser Dynamic",
+    "Tight Kick","Balanced Master","Air & Sparkle","User 01","User 02","User 03",
+    "User 04","User 05","User 06","User 07","User 08"],presetIndex:-1});
 assert.ok(element("bridgeStatus").textContent.includes("CONNECTED"),"UI becomes connected");
 assert.ok(element("bandCount").textContent.includes("2 / 24"),"host band snapshot reflected");
 handlers["eq-spectrum"]({pre:Array(384).fill(-80),post:Array(384).fill(-75),range:90,peakL:0.2,peakR:0.15});
@@ -82,6 +87,19 @@ element("qKnob").dispatch("pointerup",{pointerId:25});
 assert.ok(find("begin").some(x=>x.fields.includes("q")),"Q knob opens host automation gesture");
 assert.ok(find("edit").some(x=>x.field==="q"),"Q knob has actual editing behavior");
 assert.ok(find("end").some(x=>x.fields.includes("q")),"Q knob closes host automation gesture");
+// M3 native preset browser + filter discovery + real dynamic host params.
+assert.equal(element("presetSelect").options.length,17,"native factory+user preset list visible");
+element("presetSelect").value="4";element("presetSelect").dispatch("change");
+assert.ok(find("presetLoad").some(x=>x.index===4),"factory preset triggers native load");
+element("saveSlot").value="9";element("savePreset").onclick();
+assert.ok(find("presetSave").some(x=>x.index===9),"user preset saves to chosen native slot");
+element("shapePicker").dispatch("click",{target:{closest(){return{dataset:{shape:"6"}};}}});
+assert.ok(find("edit").some(x=>x.field==="type"&&x.value===6),"Band Pass becomes real host parameter");
+element("shapePicker").dispatch("click",{target:{closest(){return{dataset:{shape:"0"}};}}});
+element("dynRangeInput").value="-6";element("dynRangeInput").dispatch("change");
+element("dynThresholdInput").value="-36";element("dynThresholdInput").dispatch("change");
+assert.ok(find("edit").some(x=>x.field==="dynRange"&&x.value===-6),"native dynamic range");
+assert.ok(find("edit").some(x=>x.field==="dynThreshold"&&x.value===-36),"native dynamic threshold");
 element("analyzerMenu").hidden=true;
 element("analyzerMenuBtn").onclick();
 assert.equal(element("analyzerMenu").hidden,false,"analyzer FFT options available");

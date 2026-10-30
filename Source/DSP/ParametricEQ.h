@@ -14,7 +14,7 @@ constexpr int kMaxBands = 24;
 constexpr int kMaxStages = 4;
 constexpr double kPi = 3.1415926535897932384626433832795;
 
-enum class Type : int { Bell, LowShelf, HighShelf, LowCut, HighCut, Notch };
+enum class Type : int { Bell, LowShelf, HighShelf, LowCut, HighCut, Notch, BandPass, TiltShelf, FlatTilt };
 enum class Route : int { Stereo, Left, Right, Mid, Side };
 
 struct Band {
@@ -25,11 +25,14 @@ struct Band {
     double gainDb = 0.0;
     double q = 1.0;
     int slope = 12;
+    double dynamicRangeDb = 0.0; // signed additional gain, -12..+12
+    double thresholdDb = -24.0; // band-limited trigger dBFS, -60..0
 };
 inline bool same(const Band& a, const Band& b) noexcept {
     return a.enabled == b.enabled && a.type == b.type && a.route == b.route
         && a.frequency == b.frequency && a.gainDb == b.gainDb
-        && a.q == b.q && a.slope == b.slope;
+        && a.q == b.q && a.slope == b.slope
+        && a.dynamicRangeDb == b.dynamicRangeDb && a.thresholdDb == b.thresholdDb;
 }
 inline double finiteClamp(double x, double fallback, double low, double high) noexcept {
     return std::clamp(std::isfinite(x) ? x : fallback, low, high);
@@ -56,6 +59,14 @@ inline Coeff coefficients(Type type, double freq, double gainDb, double q, doubl
         case Type::Bell:
             b0=1+alpha*A; b1=-2*c; b2=1-alpha*A;
             a0=1+alpha/A; a1=-2*c; a2=1-alpha/A; break;
+        case Type::BandPass:
+            // RBJ constant 0 dB peak bandpass, numerator = alpha.
+            b0=alpha; b1=0; b2=-alpha;
+            a0=1+alpha; a1=-2*c; a2=1-alpha; break;
+        case Type::TiltShelf:
+        case Type::FlatTilt:
+            // These are assembled as two shelves in makeStages().
+            return identity();
         case Type::Notch:
             b0=1; b1=-2*c; b2=1;
             a0=1+alpha; a1=-2*c; a2=1-alpha; break;
@@ -103,10 +114,19 @@ inline std::array<Coeff,kMaxStages> makeStages(Band band, double sr) noexcept {
     std::array<Coeff,kMaxStages> result{};
     if (!band.enabled) return result;
     const bool cut = band.type == Type::LowCut || band.type == Type::HighCut;
-    const int count = cut ? stageCount(band.slope) : 1;
+    const bool tilt = band.type == Type::TiltShelf || band.type == Type::FlatTilt;
+    const int count = cut ? stageCount(band.slope) : tilt ? 2 : 1;
     for (int i=0;i<count;++i) {
         const double q = cut ? butterworthQ(count,i) : band.q;
-        result[static_cast<size_t>(i)] = coefficients(band.type,band.frequency,band.gainDb,q,sr);
+        if (tilt) {
+            const bool lo = i==0;
+            // Equal and opposite shelves, smooth neutral pivot around frequency.
+            // FlatTilt uses a gentler shelf transition than TiltShelf.
+            const double tiltQ = band.type==Type::FlatTilt ? 0.70710678 : 0.50;
+            result[static_cast<size_t>(i)] = coefficients(
+                lo?Type::LowShelf:Type::HighShelf,band.frequency,
+                lo?-0.5*band.gainDb:0.5*band.gainDb,tiltQ,sr);
+        } else result[static_cast<size_t>(i)] = coefficients(band.type,band.frequency,band.gainDb,q,sr);
     }
     return result;
 }
@@ -145,7 +165,9 @@ public:
         value.gainDb = finiteClamp(value.gainDb, 0.0, -24.0, 24.0);
         value.q = finiteClamp(value.q, 1.0, 0.1, 24.0);
         value.slope = stageCount(value.slope) * 12;
-        if (static_cast<int>(value.type) < 0 || static_cast<int>(value.type) > 5)
+        value.dynamicRangeDb=finiteClamp(value.dynamicRangeDb,0.,-12.,12.);
+        value.thresholdDb=finiteClamp(value.thresholdDb,-24.,-60.,0.);
+        if (static_cast<int>(value.type) < 0 || static_cast<int>(value.type) > 8)
             value.type = Type::Bell;
         if (static_cast<int>(value.route) < 0 || static_cast<int>(value.route) > 4)
             value.route = Route::Stereo;
@@ -266,6 +288,12 @@ private:
         std::array<std::array<State,kMaxStages>,2> state{};
         int stages=0;
         int morphRemaining=0;
+        Coeff detector{}, dynamicFilter{};
+        std::array<State,2> detectorState{}, dynamicState{};
+        std::array<double,2> envelope{};
+        double thresholdLinear=0.0630957;
+        double attack=0.,release=0.;
+        bool dynamicEnabled=false;
     };
     struct Slot {
         Band requested{};
@@ -275,17 +303,29 @@ private:
     static bool valid(int index) noexcept { return index>=0 && index<kMaxBands; }
     static int stageCountFor(const Band& b) noexcept {
         if(!b.enabled) return 0;
-        return b.type==Type::LowCut || b.type==Type::HighCut ? stageCount(b.slope):1;
+        return b.type==Type::LowCut || b.type==Type::HighCut ? stageCount(b.slope):
+               (b.type==Type::TiltShelf || b.type==Type::FlatTilt) ? 2 : 1;
     }
     static bool sameTopology(const Band& a,const Band& b) noexcept {
         return a.enabled==b.enabled && a.type==b.type
-            && a.route==b.route && stageCountFor(a)==stageCountFor(b);
+            && a.route==b.route && stageCountFor(a)==stageCountFor(b)
+            && a.dynamicRangeDb==b.dynamicRangeDb && a.thresholdDb==b.thresholdDb;
     }
     Path makePath(const Band& b) const noexcept {
         Path p;
         p.band=b;
         p.stages=stageCountFor(b);
         p.coefficients=p.target=makeStages(b,sampleRate_);
+        p.dynamicEnabled=b.enabled && std::abs(b.dynamicRangeDb)>0.0001 &&
+            (b.type==Type::Bell || b.type==Type::LowShelf || b.type==Type::HighShelf);
+        if(p.dynamicEnabled) {
+            p.detector=coefficients(Type::BandPass,b.frequency,0.0,
+                std::clamp(b.q,0.3,12.0),sampleRate_);
+            p.dynamicFilter=coefficients(b.type,b.frequency,b.dynamicRangeDb,b.q,sampleRate_);
+            p.thresholdLinear=std::pow(10.,b.thresholdDb/20.);
+            p.attack=std::exp(-1./(0.012*sampleRate_));
+            p.release=std::exp(-1./(0.100*sampleRate_));
+        }
         return p;
     }
     void apply(Slot& s,const Band& value) noexcept {
@@ -322,6 +362,30 @@ private:
         }
         --p.morphRemaining;
     }
+    static double runBiquad(const Coeff& c, State& z, double x) noexcept {
+        const double y=c.b0*x+z.z1;
+        const double z1=c.b1*x-c.a1*y+z.z2;
+        const double z2=c.b2*x-c.a2*y;
+        if(!std::isfinite(y)||!std::isfinite(z1)||!std::isfinite(z2)){z={};return 0.;}
+        z.z1=std::abs(z1)<1.e-24?0.:z1;
+        z.z2=std::abs(z2)<1.e-24?0.:z2;
+        return y;
+    }
+    static double runDynamic(Path& p,double pre,double post,int lane) noexcept {
+        if(!p.dynamicEnabled)return post;
+        const auto k=static_cast<size_t>(lane);
+        const double trigger=runBiquad(p.detector,p.detectorState[k],pre);
+        const double sq=trigger*trigger;
+        // Energy-following envelope: level is root mean squared per lane.
+        const double c=sq>p.envelope[k]?p.attack:p.release;
+        p.envelope[k]=c*p.envelope[k]+(1.-c)*sq;
+        const double rms=std::sqrt(std::max(0.,p.envelope[k]));
+        const double threshold=std::max(p.thresholdLinear,1.e-5);
+        // Soft onset: starts 6dB below threshold, reaches full at +6dB.
+        const double wet=std::clamp((rms/threshold-0.5)/1.5,0.,1.);
+        const double filtered=runBiquad(p.dynamicFilter,p.dynamicState[k],post);
+        return post+(filtered-post)*wet;
+    }
     static double filter(Path& p,double sample,int lane) noexcept {
         double x=sample;
         for(int i=0;i<p.stages;++i) {
@@ -343,25 +407,30 @@ private:
     static void processStereoPath(Path& p,double& l,double& r) noexcept {
         advance(p);
         switch(p.band.route) {
-            case Route::Stereo: l=filter(p,l,0);r=filter(p,r,1);break;
-            case Route::Left: l=filter(p,l,0);break;
-            case Route::Right: r=filter(p,r,1);break;
+            case Route::Stereo: {
+                const double a=l,b=r;
+                l=runDynamic(p,a,filter(p,l,0),0);
+                r=runDynamic(p,b,filter(p,r,1),1);break;
+            }
+            case Route::Left: {const double a=l;l=runDynamic(p,a,filter(p,l,0),0);break;}
+            case Route::Right: {const double a=r;r=runDynamic(p,a,filter(p,r,1),1);break;}
             case Route::Mid: {
                 const auto mid=(l+r)*0.5;
-                const auto delta=filter(p,mid,0)-mid;
+                const auto delta=runDynamic(p,mid,filter(p,mid,0),0)-mid;
                 l+=delta;r+=delta;break;
             }
             case Route::Side: {
                 const auto side=(l-r)*0.5;
-                const auto delta=filter(p,side,0)-side;
+                const auto delta=runDynamic(p,side,filter(p,side,0),0)-side;
                 l+=delta;r-=delta;break;
             }
         }
     }
     static void processMonoPath(Path& p,double& x) noexcept {
         advance(p);
-        if(p.band.route!=Route::Right && p.band.route!=Route::Side)
-            x=filter(p,x,0);
+        if(p.band.route!=Route::Right && p.band.route!=Route::Side) {
+            const double pre=x;x=runDynamic(p,pre,filter(p,x,0),0);
+        }
     }
     double sampleRate_=48000.0;
     std::array<Slot,kMaxBands> slots_{};

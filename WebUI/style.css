@@ -214,3 +214,34 @@ button:hover:not(:disabled){border-color:#91a4b5}
  font-weight:650;letter-spacing:.25px}
 .band-context button:last-child{border-bottom:0}
 .band-context button:hover{background:#3c6473;color:#fff}
+
+/* M3 integrated presets, discoverable filter types, real dynamic controls.
+   Presets do not crowd the plot: all widgets are inside the original chrome. */
+.preset-center{flex:1 1 250px;min-width:195px;max-width:330px;gap:4px;padding:0 4px}
+#presetSelect{min-width:0;flex:1 1 auto;height:22px;border:0;
+ background:transparent;color:#dce8f4;font-size:10px;font-weight:650;text-align:center}
+#presetSelect option{background:#1d2a37;color:#e6eef5}
+.preset-nav{border:0;background:transparent;color:#bdd1df;min-width:20px;
+ height:22px;font-size:18px;line-height:16px;font-weight:650}
+.preset-save{height:21px;padding:0 7px;border:1px solid #577889;border-radius:3px;
+ background:linear-gradient(#334f60,#1b3341);color:#d1eef9;font-size:9px;font-weight:800}
+#saveSlot{height:21px;max-width:68px;flex:0 0 68px;font-size:9px;
+ border:1px solid #405967;color:#d5e5ee;background:#233744;border-radius:3px}
+.preset-nav:hover,.preset-save:hover{background:#496b79;color:white}
+.inspector.expanded{height:231px}
+@media(max-height:510px){.inspector.expanded{height:231px}}
+.shape-picker,.dyn-controls{display:none}
+.inspector.expanded .shape-picker{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));
+ gap:3px;padding:7px 1px 5px}
+.shape-picker button{height:22px;min-width:0;border:1px solid #576675;background:#202f3c;
+ color:#a8c4d2;border-radius:3px;font-size:8px;letter-spacing:0;font-weight:700;cursor:pointer}
+.shape-picker button.active{border-color:#8dd7e5;background:#376273;color:white}
+.inspector.expanded .dyn-controls{display:flex;align-items:center;gap:8px;
+ min-height:34px;padding:3px 4px;background:#152430a6;border:1px solid #3d5464;border-radius:4px}
+.dyn-controls b{font-size:9px;letter-spacing:.4px;color:#65cfe5;white-space:nowrap}
+.dyn-controls label{display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;
+ font-size:8px;color:#b7c5d2}
+.dyn-controls input{width:54px;height:24px;background:#233947;color:#f4faff;
+ border:1px solid #516d7c;border-radius:3px;padding:0 3px;text-align:center}
+#dynStatus{font-size:8px;color:#85e4b6;margin-left:auto}
+.inspector.expanded .inspector-bottom{padding-top:7px}

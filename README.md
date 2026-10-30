@@ -97,3 +97,14 @@ The user-reportable Pro-Q 3 comparison motivated replacing the coarse mono spect
 ## M2.5 — floating band inspector + professional editing (engineering candidate)
 
 M2.4's bottom flex dock caused a *real* click/release viewport jump. M2.5 relocates the band inspector **into the graph as an absolutely positioned overlay**, so clicking, closing and opening MORE cannot modify the graph dimensions. The card is placed relative to the selected node while preserving pointer coordinates. Ctrl/Meta-click selects multiple bands, group drag moves frequencies in log space with coherent relative frequency and dB offsets, Shift-drag gives precision, Ctrl+Z/Ctrl+Y and toolbar arrows provide bounded 64-level undo/redo of **local edits**, and right click opens actionable EQ band controls. Group movements use bounded native bridge transactions and properly paired host gestures. Native FFT and DSP audio path unchanged. NOTE: DAW global undo and full Pro-Q 3 features are separate future milestones, as is real VSTHost/ArSonMix hardware QA.
+
+
+## M3 integrated milestone — native presets / filter-shapes / dynamic EQ
+
+**Presets**: Top-center chooser is now connected to native JUCE presets (8 original factory recipes plus 8 persistent User slots). Pick `USER 01–08` in the SAVE destination and press SAVE. User data stored under `%APPDATA%/ArSon Audio/ArSonEQ/Presets/`; host DAW project recall still uses APVTS.
+
+**Filter types**: Bell, Low Shelf, High Shelf, Low Cut (HPF), High Cut (LPF), Notch, Band Pass, Tilt Shelf, Flat Tilt. Shape buttons in MORE are real host parameters; existing indexes 0..5 unchanged.
+
+**Native Dynamic EQ**: On Bell/Low/High Shelf, MORE exposes Dynamic Range ±12dB and manual Threshold -60..0 dBFS, with band-limited energy detection and smoothed dynamic EQ filtering. Dynamic Range=0 returns to pure static EQ. No DSP in the browser.
+
+**Maturity**: This is an engineering candidate only; it does **not** include Pro-Q 3 analog matching, Natural/Linear Phase, external sidechain, automatic threshold, EQ Match or a release-grade preset importer. See docs/ROADMAP.md for M2–M5 ledger and outstanding tests.

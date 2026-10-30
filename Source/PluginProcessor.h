@@ -32,6 +32,14 @@ public:
 
     static juce::String parameterId(int band, const char* field);
     arson::eq::Band readBand(int index) const noexcept;
+    // Presets owned by native JUCE, never by volatile WebView localStorage.
+    static constexpr int factoryPresetCount=8, userPresetCount=8;
+    static constexpr int presetCount=factoryPresetCount+userPresetCount;
+    static juce::String presetName(int index);
+    bool loadPreset(int index);             // GUI/message thread only
+    bool saveUserPreset(int index);         // 8..15 only, never audio thread
+    int currentPreset() const noexcept { return currentPreset_; }
+    void setPresetModified() noexcept { currentPreset_=-1; }
     double configuredSampleRate() const noexcept { return preparedRate_.load(std::memory_order_relaxed); }
     juce::AudioProcessorValueTreeState parameters;
     arson::eq::AnalyzerQueue& analyzer() noexcept { return analyzer_; }
@@ -45,6 +53,8 @@ private:
         std::atomic<float>* gain = nullptr;
         std::atomic<float>* q = nullptr;
         std::atomic<float>* slope = nullptr;
+        std::atomic<float>* dynRange = nullptr;
+        std::atomic<float>* dynThreshold = nullptr;
     };
     static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout();
     void syncBands() noexcept;
@@ -53,5 +63,7 @@ private:
     arson::eq::Engine engine_;
     arson::eq::AnalyzerQueue analyzer_;
     std::atomic<double> preparedRate_{48000.0};
+    int currentPreset_=-1;
+    juce::File userPresetFile(int slot) const;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArSonEQAudioProcessor)
 };

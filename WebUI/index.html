@@ -6,7 +6,17 @@
 <body><div id="app">
 <header class="top">
   <div class="brand"><span class="brand-glyph">A<span>◢</span></span><div class="brand-name">ArSon<span>EQ</span></div><span class="brand-separator"></span><span class="brand-caption">PARAMETRIC EQ</span></div>
-  <div class="preset-center"><span class="preset-arrows">‹</span><span id="stateInfo">24 BANDS · ZERO LATENCY</span><span class="preset-arrows">›</span></div>
+  <div class="preset-center" aria-label="Real EQ presets">
+  <button id="prevPreset" class="preset-nav" type="button" title="Previous preset">‹</button>
+  <select id="presetSelect" aria-label="Choose a native EQ preset"><option value="-1">Custom / Init</option></select>
+  <button id="nextPreset" class="preset-nav" type="button" title="Next preset">›</button>
+  <select id="saveSlot" aria-label="Destination user preset slot" title="Save current EQ to this user slot">
+    <option value="8">USER 01</option><option value="9">USER 02</option>
+    <option value="10">USER 03</option><option value="11">USER 04</option>
+    <option value="12">USER 05</option><option value="13">USER 06</option>
+    <option value="14">USER 07</option><option value="15">USER 08</option>
+  </select><button id="savePreset" class="preset-save" type="button" title="Save current EQ to chosen User slot">SAVE</button>
+</div>
   <div class="top-actions"><button id="undoBtn" class="bar-button history-button" type="button" title="Undo EQ edit (Ctrl+Z)" disabled>↶</button><button id="redoBtn" class="bar-button history-button" type="button" title="Redo EQ edit (Ctrl+Y)" disabled>↷</button><button id="bandsBtn" class="bar-button" type="button" title="Active band list">BANDS <b id="bandCount">0 / 24</b></button><button id="viewBtn" class="bar-button active" type="button" title="Toggle live spectrum">ANALYZER <span id="spectrumStatus">ON</span></button><button id="analyzerMenuBtn" class="bar-button" type="button" title="FFT resolution, smoothing, display tilt and freeze">FFT ⚙</button><button id="helpBtn" class="help-button" type="button" title="Mouse and keyboard controls">?</button></div>
 </header>
 <main class="workspace">
@@ -50,10 +60,27 @@
       <div id="emptyInspector" hidden></div>
       <div id="bandInspector" class="band-inspector" hidden>
         <div class="parameter-row">
-          <label class="parameter shape">FILTER TYPE<span class="shape-glyph" id="typeGlyph">⌒</span><select id="typeSelect"><option value="0">Bell</option><option value="1">Low Shelf</option><option value="2">High Shelf</option><option value="3">Low Cut</option><option value="4">High Cut</option><option value="5">Notch</option></select></label>
+          <label class="parameter shape">FILTER TYPE<span class="shape-glyph" id="typeGlyph">⌒</span><select id="typeSelect"><option value="0">Bell</option><option value="1">Low Shelf</option><option value="2">High Shelf</option><option value="3">Low Cut</option><option value="4">High Cut</option><option value="5">Notch</option><option value="6">Band Pass</option><option value="7">Tilt Shelf</option><option value="8">Flat Tilt</option></select></label>
           <label class="parameter">FREQUENCY<span class="knob-face freq" id="freqKnob" title="Drag vertically to adjust freq"></span><div class="number"><input id="freqInput" type="number" min="20" max="20000" step=".1"><span>Hz</span></div></label>
           <label class="parameter">GAIN<span class="knob-face gain" id="gainKnob" title="Drag vertically to adjust gain"></span><div class="number"><input id="gainInput" type="number" min="-24" max="24" step=".1"><span>dB</span></div></label>
           <label class="parameter q-field">Q<span class="knob-face q" id="qKnob" title="Drag vertically to adjust q"></span><div class="number"><input id="qInput" type="number" min=".1" max="24" step=".01"><span>Q</span></div></label>
+        </div>
+        <div id="shapePicker" class="shape-picker" role="group" aria-label="EQ filter shapes">
+          <button data-shape="0" title="Bell">BELL</button>
+          <button data-shape="1" title="Low Shelf">LO SH</button>
+          <button data-shape="2" title="High Shelf">HI SH</button>
+          <button data-shape="3" title="High Pass / Low Cut">HPF</button>
+          <button data-shape="4" title="Low Pass / High Cut">LPF</button>
+          <button data-shape="5" title="Notch">NOTCH</button>
+          <button data-shape="6" title="Band Pass">BPF</button>
+          <button data-shape="7" title="Tilt Shelf">TILT</button>
+          <button data-shape="8" title="Flat Tilt">FLAT</button>
+        </div>
+        <div class="dyn-controls" id="dynControls">
+          <b>DYNAMIC EQ</b>
+          <label>RANGE <input id="dynRangeInput" type="number" step=".1" min="-12" max="12" value="0"> dB</label>
+          <label>THRESHOLD <input id="dynThresholdInput" type="number" step=".1" min="-60" max="0" value="-24"> dBFS</label>
+          <span id="dynStatus">OFF</span>
         </div>
         <div class="inspector-bottom">
           <div class="channel-wrap"><span>CHANNEL</span><div class="route-group" id="routeGroup"><button type="button" data-route="0">ST</button><button type="button" data-route="1">L</button><button type="button" data-route="2">R</button><button type="button" data-route="3">MID</button><button type="button" data-route="4">SIDE</button></div></div>
@@ -65,7 +92,7 @@
   </div>
 </main>
 <footer class="bottom-bar">
-  <div class="footer-left"><span class="signal-flag"><i></i> PARAMETRIC EQ</span><span class="footer-divider"></span><span id="bridgeStatus">CONNECTING</span></div>
+  <div class="footer-left"><span class="signal-flag"><i></i> PARAMETRIC EQ</span><span class="footer-divider"></span><span id="bridgeStatus">CONNECTING</span><span class="footer-divider"></span><span id="stateInfo">24 BANDS / ZERO LATENCY</span></div>
   <div class="footer-center"><span class="legend-mark pre"></span> PRE <span class="legend-mark post"></span> POST <span class="legend-mark curve"></span> EQ CURVE</div>
   <div class="footer-right"><span>ZERO LATENCY</span><span class="footer-divider"></span><b>ARSON AUDIO</b></div>
 </footer>

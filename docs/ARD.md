@@ -205,3 +205,22 @@ Native + WebView command contract:
 Validation: JavaScript fake-host smoke now verifies floating nesting and compositor CSS contract, drag gestures, grouped `bulkEdit`, undo/redo, right-click and analyzer actions; Chromium visual snapshot of selected band on a fixed canvas. Real VSTHost/ArSonMix 100%/150% DPI, host automation and drag-click feedback remain mandatory before merge. Keep PR draft.
 
 **Limits:** Group selection currently supports aggregate drag/delete/bypass, not true Pro-Q 3 per-band solo, range editing, spectrum grab or fully integrated DAW undo. Do not claim those implemented. Advanced card may cover background spectrum but selected band nodes are protected by initial placement; it is not a reflowing bottom dock.
+
+ 
+## M3 — native Dynamic EQ + 9 filter shapes + persistent preset architecture (2026-10-30)
+
+### DSP decisions
+- The original six `Type` values (0–5) remain **numerically unchanged**. Types 6=BandPass, 7=TiltShelf, 8=FlatTilt extend the JUCE host choice list; `BandPass` is the RBJ constant-peak bandpass; TiltShelf/FlatTilt use two opposite low/high shelves, realized as a two-stage path. Neither new shape is a claim of FabFilter analog matching.
+- Existing 24×7 (168) APVTS IDs retain their names; add `bXX_dynRange` and `bXX_dynThreshold` per band, **48 added host parameters** (216 total). Dynamic range default zero (legacy project behavior unchanged), manual threshold default -24 dBFS. Save-state schema 2; old state XML loads via APVTS's compatible parameter mapping.
+- Dynamic audio processing on native Engine::process()/processMono(): only Bell/LowShelf/HighShelf supports dynamics; each active dynamic band has preallocated per-lane RBJ band-pass detector state, energy follower with ~12ms attack/~100ms release, 6dB-soft-onset threshold, and a separate fixed dynamic EQ filter branch blended continuously in proportion to detector. Range is signed ±12 dB. Controls are updated at audio-block boundary via atomic APVTS references and topology-safe 10ms path crossfade, with no FFT/alloc/locks in sample processing. **This is a functional manual-threshold dynamic EQ foundation**, not FabFilter's program-dependent auto threshold or analog matched design. The display shows the static curve; a dynamic activity/ghost response visual remains pending.
+- Active Dynamic EQ adds a detector/filter pair only for enabled dynamic bands. Default range=0 bypasses them. Validate transfer at 48/96k, extremes Q, clipping, M/S routing, rapid automation, and multiple instances on hardware.
+
+### Native presets
+- Native C++/JUCE factory presets: Init/Flat, Clean Vocal, Vocal Presence, Warm Vocal, De-Esser Dynamic, Tight Kick, Balanced Master, Air & Sparkle. All are original, light-duty examples, not "FabFilter" or third-party settings.
+- User presets 01–08 persisted as full JUCE ValueTree XML under `%APPDATA%/ArSon Audio/ArSonEQ/Presets/`, with fixed filenames and no user-supplied path traversal. `User 01..08` are selected for saving via a separate dedicated slot selector and **SAVE**; loading is via top-center preset picker/prev/next. Factory and User settings are shared across VST3 and Standalone on the same Windows profile. Host session save/recall continues through APVTS.
+- All user-file read/writes happen only on GUI/message thread, never inside audio callbacks. 256KiB load-size limit. Factory changes are applied as host-notified parameter writes, user XML through JUCE APVTS state replace. Missing user files must show a failure, not pretend to load.
+- The center toolbar is now a real user control, with rate/band status relocated to footer; advanced filter shape chips and dynamic range/threshold are inside the M2.5 floating inspector, preserving canvas geometry. The 9 filter types also remain in the accessible dropdown.
+
+### Compatibility and truthful status
+- "M2.5" (flicker-free floating inspector) is user-confirmed; "M3 integrated candidate" is **NOT** validated on real hardware until new CI, VSTHost/ArSonMix, preset reload across application restart, and audio output profile.
+- Distinct from Pro-Q 3: no program-dependent dynamic auto mode, external sidechain, custom detector range, Natural/Linear Phase, brickwall, 6–96dB/oct filters, EQ Match, surround, multi-instance comparison. Those are M4/M5 and must never be represented by relabeling this code.

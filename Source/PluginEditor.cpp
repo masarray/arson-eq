@@ -7,7 +7,8 @@ namespace {
 const juce::Colour bg(0xff11151c), grid(0xff252d37), ink(0xffc9d3e0);
 const juce::Colour accent(0xff52c9df), selectedColor(0xfff2bf79);
 constexpr double minHz=20.0,maxHz=20000.0,dbRange=18.0;
-constexpr const char* typeNames[]{"Bell","Low Sh","High Sh","Low Cut","High Cut","Notch"};
+constexpr const char* typeNames[]{"Bell","Low Sh","High Sh","Low Cut","High Cut","Notch",
+    "Band Pass","Tilt Sh","Flat Tilt"};
 constexpr const char* routeNames[]{"Stereo","L","R","Mid","Side"};
 }
 ArSonEQEditor::ArSonEQEditor(ArSonEQAudioProcessor& owner)

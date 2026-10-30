@@ -122,3 +122,20 @@ Do not declare commercial feature parity until these independent criteria are me
 - [ ] Confirm CI Linux Chromium visual and Windows dual target VST3+Standalone build from same commit.
 - [ ] Real Windows VSTHost/ArSonMix: graph height invariant on click/release, drag at 20Hz/20kHz extremes, MORE at 100%/150% DPI, group gestures, undo/redo; profile WebView2 CPU.
 - [ ] Later: band solo audition, multi-band numeric editing, fully host-integrated undo semantics, spectrum grab and output auto-gain.
+
+ 
+## M2–M5 milestone ledger (current branch, 2026-10-30)
+| Milestone | Working scope | State / remaining gate |
+|---|---|---|
+| M2.4 | Accurate stereo spectrum, 384 log bins, FFT controls | Implemented, Windows/standalone CI pass, needs real signal calibration/host profiling |
+| M2.5 | Non-resizing floating card, group edits, 64 undo/redo, right click | Implemented; user confirmed stable floating layout |
+| M3 | 9 filter shapes, real JUCE preset picker (8 factory+8 user), native manual-threshold dynamic bell/shelf, 48 new APVTS params | Integrated candidate; needs fast tests, dual Windows binary, VSTHost audio/preset QA |
+| M4 | Scientifically verified analog-matched transfer, professional 6–96dB/brickwall slopes, Natural Phase, Linear Phase with latency contract | NOT STARTED as engine features; research/measurement stage only |
+| M5 | Real EQ Match, spectrum grab/reference/collision, band solo, surround, polished preset portability, release sign-off | NOT STARTED, sequenced after M4 DSP validation |
+
+### M3 acceptance/test checklist
+- [ ] Linux core: old shape IDs, new pass/tilt response, dynamic threshold power response, enabled/disabled passthrough.
+- [ ] WebUI: real host-preset event commands, factory/user list populated, filter chips, native dynamic range/threshold commands, M2.5 click/drag no reflow.
+- [ ] Windows: paired VST3+Standalone same commit, 3 native tests pass, correctly packaged EXE and .vst3 with manifest.
+- [ ] Real hardware: output audible with/without dynamics, reasonable CPU at 24 bands, scene restart and preset save/load, stereo/M/S, 44.1/48/96k at 32/64/128 buffers, 100%/150% DPI.
+- [ ] Advanced dynamic auto threshold/phase/brickwall/EQ match remain separate explicitly unimplemented tasks.

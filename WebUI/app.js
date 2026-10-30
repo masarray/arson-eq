@@ -6,7 +6,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const canvas=$("eqCanvas"), wrap=$("graphWrap"), ctx=canvas.getContext("2d",{alpha:false});
-const TYPES=["Bell","Low Shelf","High Shelf","Low Cut","High Cut","Notch"];
+const TYPES=["Bell","Low Shelf","High Shelf","Low Cut","High Cut","Notch","Band Pass","Tilt Shelf","Flat Tilt"];
 const COLORS=["#ff9473","#e5b855","#a99aff","#77d5a4","#53ccd2","#b58eea","#eb87a9","#78b6e9"];
 const F0=20,F1=20000,MAX=24,RIGHT_RAIL=63;
 let rangeDb=12;
@@ -17,14 +17,16 @@ const xHz=(x,width)=>F0*Math.pow(F1/F0,clamp(x/plotWidth(width),0,1));
 const dbY=(v,h)=>h*0.5-clamp(v,-rangeDb,rangeDb)/rangeDb*h*0.5;
 const yDb=(y,h)=>clamp((h*0.5-y)/(h*0.5)*rangeDb,-rangeDb,rangeDb);
 const isCut=t=>t===3||t===4;
+const hasGain=t=>!isCut(t)&&t!==5&&t!==6;
 const isFiniteNumber=n=>typeof n==="number"&&Number.isFinite(n);
 const noteFor=hz=>{if(!isFiniteNumber(hz)||hz<=0)return "—";const midi=Math.round(69+12*Math.log2(hz/440));return ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"][(midi+1200)%12]+(Math.floor(midi/12)-1);};
 const backend=window.__JUCE__?.backend;
-let bands=Array.from({length:MAX},(_,i)=>({id:i,enabled:false,type:0,route:0,freq:1000,gain:0,q:1,slope:0}));
+let bands=Array.from({length:MAX},(_,i)=>({id:i,enabled:false,type:0,route:0,freq:1000,gain:0,q:1,slope:0,dynRange:0,dynThreshold:-24}));
+let presetNames=[],activePreset=-1,presetBusy=false;
 let curves={l:[],r:[],cross:[],band:[]},spec={pre:[],post:[],range:90,peakL:0,peakR:0,preVisible:true,postVisible:true},samplerate=48000;
 let selected=-1,hovered=-1,showSpectrum=true,dragging=null,pendingDrag=null,lastValidPick=null;
 const selection=new Set(),history=[],redoHistory=[];
-const FIELDS=["enabled","type","route","freq","gain","q","slope"];
+const FIELDS=["enabled","type","route","freq","gain","q","slope","dynRange","dynThreshold"];
 let editSnapshot=null,historyReplay=false;
 const snapshot=()=>bands.map(b=>FIELDS.map(f=>b[f]));
 const refreshUndo=()=>{$("undoBtn").disabled=!history.length;$("redoBtn").disabled=!redoHistory.length;};
@@ -67,13 +69,14 @@ const setParam=(id,field,value,gesture=true)=>{
   if(bands[id][field]===value)return;
   if(gesture)beginEdit();
   updateBandLocal(id,field,value);
+  if(activePreset>=0){activePreset=-1;$("presetSelect").value="-1";}
   emit({kind:"edit",id,field,value,gesture});
   if(gesture)finishEdit();
 };
 const placeInspector=()=>{
   const card=$("inspector");
   if(card.hidden||selected<0)return;
-  const height=card.classList.contains("expanded")?Math.min(151,h-40):70;
+  const height=card.classList.contains("expanded")?Math.min(226,h-40):70;
   const width=Math.min(630,Math.max(250,plotWidth(w)-28));
   const b=bands[selected],x=hzX(b.freq,w),y=dbY(isCut(b.type)?0:b.gain,h);
   let left=clamp(x-width*.5,12,Math.max(12,plotWidth(w)-width-12));
@@ -102,7 +105,7 @@ const addBand=(x,y)=>{
   if(idx<0)return;
   beginEdit();
   const freq=xHz(x,w),gain=yDb(y,h);
-  bands[idx]={...bands[idx],enabled:true,type:0,route:0,freq,gain,q:1,slope:0};
+  bands[idx]={...bands[idx],enabled:true,type:0,route:0,freq,gain,q:1,slope:0,dynRange:0,dynThreshold:-24};
   emit({kind:"add",id:idx,freq,gain});
   select(idx);finishEdit();
 };
@@ -156,11 +159,19 @@ const renderInspector=()=>{
   setValue("freqInput",Math.round(b.freq*10)/10);
   setValue("gainInput",Math.round(b.gain*100)/100);
   setValue("qInput",Math.round(b.q*100)/100);
-  $("gainInput").disabled=isCut(b.type)||b.type===5;
+  $("gainInput").disabled=!hasGain(b.type);
   $("gainKnob").style.opacity=$("gainInput").disabled?".35":"1";
   $("slopeSelect").disabled=!isCut(b.type);
   $("noteLabel").textContent=noteFor(b.freq);
-  $("typeGlyph").textContent=["⌒","◡","◠","╱","╲","⌄"][b.type]||"⌒";
+  $("typeGlyph").textContent=["⌒","◡","◠","╱","╲","⌄","◇","⇅","↕"][b.type]||"⌒";
+  $("shapePicker").querySelectorAll("button").forEach(btn=>
+    btn.classList.toggle("active",Number(btn.dataset.shape)===b.type));
+  const dynamicOK=b.type===0||b.type===1||b.type===2;
+  $("dynRangeInput").disabled=!dynamicOK;
+  $("dynThresholdInput").disabled=!dynamicOK;
+  setValue("dynRangeInput",Math.round((b.dynRange||0)*10)/10);
+  setValue("dynThresholdInput",Math.round((b.dynThreshold??-24)*10)/10);
+  $("dynStatus").textContent=!dynamicOK?"BELL / SHELF ONLY":Math.abs(b.dynRange||0)>0.01?"ACTIVE":"OFF";
   const knobAngle=(v,min,max,log=false)=>{
     const t=log?(Math.log(v/min)/Math.log(max/min)):(v-min)/(max-min);
     return (-140+280*clamp(t,0,1)).toFixed(1)+"deg";
@@ -356,9 +367,11 @@ function applyHostState(data){
   if(!data||!Array.isArray(data.bands)||data.bands.length!==MAX)return;
   connected=true;samplerate=isFiniteNumber(data.rate)?data.rate:samplerate;
   bands=data.bands.map((b,i)=>({
-    id:i,enabled:!!b.enabled,type:clamp(b.type|0,0,5),route:clamp(b.route|0,0,4),
+    id:i,enabled:!!b.enabled,type:clamp(b.type|0,0,8),route:clamp(b.route|0,0,4),
     freq:clamp(Number(b.freq)||1000,20,20000),gain:clamp(Number(b.gain)||0,-24,24),
-    q:clamp(Number(b.q)||1,.1,24),slope:clamp(b.slope|0,0,3)
+    q:clamp(Number(b.q)||1,.1,24),slope:clamp(b.slope|0,0,3),
+    dynRange:clamp(Number(b.dynRange)||0,-12,12),
+    dynThreshold:clamp(Number(b.dynThreshold??-24),-60,0)
   }));
   if(dragging)for(const [id,v] of dragging.values){
     if(bands[id]){bands[id].freq=v.freq;bands[id].gain=v.gain;}
@@ -369,8 +382,23 @@ function applyHostState(data){
   const peak=Math.max(0,...bands.filter(b=>b.enabled).map(b=>Math.abs(b.gain)),
     ...(curves.l||[]).map(Math.abs),...(curves.r||[]).map(Math.abs));
   rangeDb=clamp(Math.ceil((peak+1)/3)*3,12,24);
-  $("stateInfo").textContent="24 BANDS  /  "+(samplerate/1000).toFixed(1)+" kHz  /  ZERO LATENCY";
+  $("stateInfo").textContent="24 BANDS / "+(samplerate/1000).toFixed(1)+" kHz / ZERO LATENCY";
   $("bridgeStatus").textContent="NATIVE DSP CONNECTED";
+  if(Array.isArray(data.presets)&&data.presets.length){
+    presetNames=data.presets.map(String);
+    if($("presetSelect").options.length!==presetNames.length+1){
+      $("presetSelect").replaceChildren();
+      const custom=document.createElement("option");custom.value="-1";custom.textContent="Custom / Init";
+      $("presetSelect").appendChild(custom);
+      presetNames.forEach((name,index)=>{
+        const option=document.createElement("option");
+        option.value=String(index);option.textContent=name;
+        $("presetSelect").appendChild(option);
+      });
+    }
+  }
+  activePreset=Number.isInteger(data.presetIndex)?data.presetIndex:-1;
+  $("presetSelect").value=String(activePreset);
   renderInspector();renderRail();if(!dragging)placeInspector();changed();
 }
 function applySpectrum(data){
@@ -434,7 +462,7 @@ canvas.addEventListener("pointerdown",e=>{
   beginEdit();
   const ids=selection.has(id)?[...selection]:[id];
   const start=new Map(ids.map(i=>[i,{freq:bands[i].freq,gain:bands[i].gain}]));
-  const fields=ids.map(i=>({id:i,fields:["freq",...(!isCut(bands[i].type)&&bands[i].type!==5?["gain"]:[])]}));
+  const fields=ids.map(i=>({id:i,fields:["freq",...(hasGain(bands[i].type)?["gain"]:[])]}));
   dragging={id,pointer:e.pointerId,x:p.x,y:p.y,start,values:new Map(start),
     fields,group:ids.length>1,precision:!!e.shiftKey};
   canvas.setPointerCapture(e.pointerId);
@@ -451,11 +479,11 @@ canvas.addEventListener("pointermove",e=>{
     const entries=[];
     for(const [id,v] of d.start){
       const freq=clamp(v.freq*ratio,F0,F1);
-      const gain=isCut(bands[id].type)||bands[id].type===5?v.gain:clamp(v.gain+delta,-24,24);
+      const gain=!hasGain(bands[id].type)?v.gain:clamp(v.gain+delta,-24,24);
       d.values.set(id,{freq,gain});
       bands[id].freq=freq;bands[id].gain=gain;
       entries.push({id,field:"freq",value:freq});
-      if(!isCut(bands[id].type)&&bands[id].type!==5)entries.push({id,field:"gain",value:gain});
+      if(hasGain(bands[id].type))entries.push({id,field:"gain",value:gain});
     }
     pendingDrag=entries;
     if(!canvas.dataset.dragRaf){canvas.dataset.dragRaf="1";requestAnimationFrame(flushDrag);}
@@ -518,6 +546,8 @@ const ctrl=(id,field,converter=Number)=>{
   });
 };
 ctrl("typeSelect","type",Number);ctrl("slopeSelect","slope",Number);
+ctrl("dynRangeInput","dynRange",v=>clamp(Number(v),-12,12));
+ctrl("dynThresholdInput","dynThreshold",v=>clamp(Number(v),-60,0));
 ctrl("freqInput","freq",v=>clamp(Number(v),20,20000));
 ctrl("gainInput","gain",v=>clamp(Number(v),-24,24));
 ctrl("qInput","q",v=>clamp(Number(v),.1,24));
@@ -540,6 +570,43 @@ $("analyzerMenuBtn").onclick=()=>{
   $("quickHelp").hidden=true;$("bandList").hidden=true;
   $("analyzerMenu").hidden=!$("analyzerMenu").hidden;
 };
+const presets={
+  navigate(delta){
+    if(!presetNames.length)return;
+    const start=activePreset<0?(delta>0?-1:0):activePreset;
+    const next=(start+delta+presetNames.length)%presetNames.length;
+    this.load(next);
+  },
+  load(index){
+    if(presetBusy||index<0||index>=presetNames.length)return;
+    presetBusy=true;
+    emit({kind:"presetLoad",index});
+  }
+};
+$("prevPreset").onclick=()=>presets.navigate(-1);
+$("nextPreset").onclick=()=>presets.navigate(1);
+$("presetSelect").addEventListener("change",()=>{
+  const value=Number($("presetSelect").value);
+  if(value>=0)presets.load(value);
+});
+$("savePreset").onclick=()=>{
+  const index=Number($("saveSlot").value);
+  if(index>=8&&index<16)emit({kind:"presetSave",index});
+};
+if(backend?.addEventListener)backend.addEventListener("eq-preset-result",result=>{
+  presetBusy=false;
+  if(!result?.ok){
+    $("bridgeStatus").textContent="PRESET NOT AVAILABLE / SAVE FAILED";
+    $("presetSelect").value=String(activePreset);
+  }else{
+    activePreset=Number(result.index);
+    $("presetSelect").value=String(activePreset);
+  }
+});
+$("shapePicker").addEventListener("click",e=>{
+  const button=e.target.closest("[data-shape]");
+  if(selected>=0&&button)setParam(selected,"type",Number(button.dataset.shape));
+});
 $("advancedBtn").onclick=()=>{
   const expanded=$("inspector").classList.toggle("expanded");
   $("advancedBtn").textContent=expanded?"LESS ▴":"MORE ▾";
