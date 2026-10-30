@@ -35,6 +35,7 @@ private:
     void setField(int, const char*, float);
     void sendState(bool response);
     void sendSpectrum();
+    void sendDynamics(bool force=false);
     void prepareWindow();
     void timerCallback() override;
     static constexpr int maxSize_=8192;
@@ -58,6 +59,9 @@ private:
     float tilt_=4.5f,peakL_=0.f,peakR_=0.f;
     bool freeze_=false,showPre_=true,showPost_=true;
     juce::uint32 lastAnalysisTick_=0;
+    std::array<float,arson::eq::kMaxBands> lastDynamicActivity_{};
+    bool hadDynamicBands_=false;
+    juce::uint32 lastDynamicsTick_=0;
     int selected_=-1;
     bool analyzerVisible_=true;
     bool ready_=false;

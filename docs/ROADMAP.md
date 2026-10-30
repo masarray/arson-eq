@@ -139,3 +139,15 @@ Do not declare commercial feature parity until these independent criteria are me
 - [ ] Windows: paired VST3+Standalone same commit, 3 native tests pass, correctly packaged EXE and .vst3 with manifest.
 - [ ] Real hardware: output audible with/without dynamics, reasonable CPU at 24 bands, scene restart and preset save/load, stereo/M/S, 44.1/48/96k at 32/64/128 buffers, 100%/150% DPI.
 - [ ] Advanced dynamic auto threshold/phase/brickwall/EQ match remain separate explicitly unimplemented tasks.
+
+
+### M3.1 after screenshot review — advanced UI + real detector visualization
+- [x] Fix dynamic detector stale frequency/Q during automation via topology-safe dual-path transition.
+- [x] Per-band actual RMS trigger activity published once per processing block, 24 bounded relaxed atomics.
+- [x] Live DSP-derived **effective transfer** L/R curve + center dynamic gain, max 20Hz updates on change, independently of analyzer toggle.
+- [x] Visualize dynamic response against static curve, moving gain indicator and live value/threshold progress meter.
+- [x] Replace Windows white native Type EQ menu with 9-choice dark app popup; replace native preset chevron with text-only preset button and dark menu.
+- [x] Advanced inspector <=484×142 pixels, quick <=484×70; no reflow of EQ canvas.
+- [ ] Paired Linux/Windows Release CI and inspect 900×535 advanced popup screenshot.
+- [ ] Native VSTHost/ArSonMix audition, manual/auto threshold gap, audio correspondence and CPU profile.
+- [ ] **Still incomplete for Pro-Q 3 / iZotope parity:** auto threshold, frequency-dependent ballistics, fully adjustable attack/release, external sidechain, advanced filter and phase modes, true-Q optimized dynamic detector.

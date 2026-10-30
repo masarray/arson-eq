@@ -108,3 +108,7 @@ M2.4's bottom flex dock caused a *real* click/release viewport jump. M2.5 reloca
 **Native Dynamic EQ**: On Bell/Low/High Shelf, MORE exposes Dynamic Range ±12dB and manual Threshold -60..0 dBFS, with band-limited energy detection and smoothed dynamic EQ filtering. Dynamic Range=0 returns to pure static EQ. No DSP in the browser.
 
 **Maturity**: This is an engineering candidate only; it does **not** include Pro-Q 3 analog matching, Natural/Linear Phase, external sidechain, automatic threshold, EQ Match or a release-grade preset importer. See docs/ROADMAP.md for M2–M5 ledger and outstanding tests.
+
+
+### M3.1 dynamic feedback / compact controls
+Dynamic bands now show **live DSP-activity-driven** gain motion and composite response, sampled from the native detector via fixed-size telemetry. The advanced floating card shrinks to 484×142; selecting FILTER TYPE opens an **app-owned dark 9-filter menu** so no white system menu appears, while presets have a text-only chevron-free dark popup. This does not mean Pro-Q3/iZotope engine parity: computed dynamic curve is an instantaneous approximation; auto threshold, sidechain and program-dependent ballistics are still missing.

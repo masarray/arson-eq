@@ -385,6 +385,67 @@ void ArSonEQWebEditor::sendSpectrum() {
     browser_.emitEventIfBrowserIsVisible("eq-spectrum",snapshot);
 }
 
+
+void ArSonEQWebEditor::sendDynamics(bool force) {
+    if(!ready_||!pageLoaded_)return;
+    const auto tick=juce::Time::getMillisecondCounter();
+    // Prefer active streaming at <=20Hz; don't recompute a 256-point curve
+    // during every 25Hz UI message tick or when dynamics are unused.
+    if(!force && tick-lastDynamicsTick_<50)return;
+    lastDynamicsTick_=tick;
+    std::array<float,arson::eq::kMaxBands> wet{};
+    bool any=false,changed=force;
+    juce::Array<juce::var> gains,activity;
+    const double sr=processor_.configuredSampleRate();
+    for(int i=0;i<arson::eq::kMaxBands;++i) {
+        const auto& b=cache_[static_cast<size_t>(i)];
+        const bool active=b.enabled && std::abs(b.dynamicRangeDb)>0.0001 &&
+            (b.type==arson::eq::Type::Bell ||
+             b.type==arson::eq::Type::LowShelf ||
+             b.type==arson::eq::Type::HighShelf);
+        const auto v=active?juce::jlimit(0.f,1.f,processor_.dynamicActivity(i)):0.f;
+        wet[static_cast<size_t>(i)]=v;
+        any|=active;
+        changed|=std::abs(v-lastDynamicActivity_[static_cast<size_t>(i)])>0.006f;
+        activity.add(v);
+        double deltaDb=0.;
+        if(active&&v>0.0001f) {
+            // True complex response of the interpolated dynamic filter at
+            // this band's own frequency (not a fabricated animated meter).
+            const auto c=arson::eq::coefficients(b.type,b.frequency,b.dynamicRangeDb,b.q,sr);
+            const auto z=std::polar(1.,-2.*arson::eq::kPi*b.frequency/sr);
+            const auto z2=z*z;
+            const auto dynH=(c.b0+c.b1*z+c.b2*z2)/(1.+c.a1*z+c.a2*z2);
+            deltaDb=20.*std::log10(std::max(1.e-20,std::abs(1.+double(v)*(dynH-1.))));
+        }
+        gains.add(deltaDb);
+    }
+    if(!any&&!hadDynamicBands_)return;
+    changed|=(any!=hadDynamicBands_);
+    if(!changed)return;
+    hadDynamicBands_=any;
+    lastDynamicActivity_=wet;
+    auto payload=makeObject();
+    property(payload,"active",any);
+    property(payload,"activity",std::move(activity));
+    property(payload,"gainDb",std::move(gains));
+    if(any) {
+        juce::Array<juce::var> l,r;
+        for(int i=0;i<graphPoints;++i) {
+            const auto hz=lowest*std::pow(highest/lowest,double(i)/(graphPoints-1));
+            const auto matrix=graphEngine_.matrixResponse(hz,&wet);
+            const auto db=[](const std::complex<double>& c) {
+                return juce::jlimit(-120.,40.,20.*std::log10(std::max(1.e-20,std::abs(c))));
+            };
+            l.add(db(matrix.ll));
+            r.add(db(matrix.rr));
+        }
+        property(payload,"l",std::move(l));
+        property(payload,"r",std::move(r));
+    }
+    browser_.emitEventIfBrowserIsVisible("eq-dynamics",payload);
+}
+
 void ArSonEQWebEditor::timerCallback() {
     bool changed=false;
     const auto rate=processor_.configuredSampleRate();
@@ -400,5 +461,7 @@ void ArSonEQWebEditor::timerCallback() {
         }
     }
     if(changed)sendState(true);
+    // Dynamic curve must animate even when analyzer FFT is switched OFF.
+    sendDynamics(changed);
     if(analyzerVisible_)sendSpectrum();
 }

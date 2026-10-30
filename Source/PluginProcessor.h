@@ -43,6 +43,12 @@ public:
     double configuredSampleRate() const noexcept { return preparedRate_.load(std::memory_order_relaxed); }
     juce::AudioProcessorValueTreeState parameters;
     arson::eq::AnalyzerQueue& analyzer() noexcept { return analyzer_; }
+    // GUI-only telemetry: block-latched native dynamic wet values, never UI timers/FFT
+    // inside processBlock. Relaxed atomic read/write is sufficient for meters.
+    float dynamicActivity(int band) const noexcept {
+        return band>=0&&band<arson::eq::kMaxBands?
+            dynamics_[static_cast<size_t>(band)].load(std::memory_order_relaxed):0.f;
+    }
 
 private:
     struct ParamRefs {
@@ -63,6 +69,7 @@ private:
     arson::eq::Engine engine_;
     arson::eq::AnalyzerQueue analyzer_;
     std::atomic<double> preparedRate_{48000.0};
+    std::array<std::atomic<float>,arson::eq::kMaxBands> dynamics_{};
     int currentPreset_=-1;
     juce::File userPresetFile(int slot) const;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArSonEQAudioProcessor)

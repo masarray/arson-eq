@@ -96,6 +96,36 @@ int main() {
         l=1;r=1;eq.process(l,r);
         require(std::isfinite(l)&&std::isfinite(r),"sample rate reset");
     }
+    // M3.1: Dynamics response is driven by processed AUDIO, not synthetic
+    // UI animation. Frequency/Q changes must retune the native detector.
+    {
+        Engine live;live.prepare(48000);
+        Band band;band.enabled=true;band.type=Type::Bell;band.frequency=1000.;
+        band.gainDb=0.;band.q=2.;band.dynamicRangeDb=-8.;
+        band.thresholdDb=-40.;
+        live.setBand(0,band);live.prepare(48000);
+        for(int n=0;n<12000;++n) {
+            double x=0.5*std::sin(2*kPi*1000*n/48000.);
+            live.processMono(x);
+        }
+        const auto peakWet=live.dynamicActivity(0);
+        require(peakWet>0.5f,"actual 1kHz signal drives dynamic envelope");
+        std::array<float,kMaxBands> activity{};
+        activity[0]=peakWet;
+        require(live.matrixResponse(1000.,&activity).ll.real() <
+                live.matrixResponse(1000.).ll.real()-.02,
+                "live detector activity produces real frequency-response reduction");
+        band.frequency=5000.;band.q=1.7;
+        live.setBand(0,band);
+        for(int n=0;n<30000;++n) { // replaced below with actual loop
+            double x=0.5*std::sin(2*kPi*5000*n/48000.);
+            live.processMono(x);
+        }
+        require(live.band(0).frequency==5000.,"dynamic detector follows frequency automation");
+        require(live.dynamicActivity(0)>0.35f,"retuned 5kHz detector measures 5kHz energy");
+        for(int n=0;n<30000;++n){double z=0.;live.processMono(z);}
+        require(live.dynamicActivity(0)<0.1f,"dynamic wet decays on silence");
+    }
     // Invalid values must be sanitized at the boundary.
     b.frequency=std::numeric_limits<double>::quiet_NaN();
     b.q=std::numeric_limits<double>::infinity();

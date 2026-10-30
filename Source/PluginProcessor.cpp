@@ -115,6 +115,10 @@ void ArSonEQAudioProcessor::processAudio(juce::AudioBuffer<Sample>& audio) {
         }
         for (int ch=2;ch<channels;++ch) audio.clear(ch,0,frames);
     }
+    // One bounded telemetry publication per audio block, never per audio sample.
+    for(int band=0;band<arson::eq::kMaxBands;++band)
+        dynamics_[static_cast<size_t>(band)].store(engine_.dynamicActivity(band),
+                                                  std::memory_order_relaxed);
 }
 void ArSonEQAudioProcessor::processBlock(juce::AudioBuffer<float>& b,juce::MidiBuffer&) { processAudio(b); }
 void ArSonEQAudioProcessor::processBlock(juce::AudioBuffer<double>& b,juce::MidiBuffer&) { processAudio(b); }

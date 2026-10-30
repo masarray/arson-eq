@@ -156,6 +156,17 @@ public:
         }
     }
     double sampleRate() const noexcept { return sampleRate_; }
+    // Audio-thread-owned current detector activity; publish once per block
+    // via separate relaxed atomics in the processor, never read Engine cross-thread.
+    float dynamicActivity(int index) const noexcept {
+        if(!valid(index))return 0.f;
+        const auto& slot=slots_[static_cast<size_t>(index)];
+        const auto activity=[](const Path& p) noexcept {
+            return p.dynamicEnabled?std::max(p.activity[0],p.activity[1]):0.;
+        };
+        return static_cast<float>(std::clamp(std::max(activity(slot.primary),
+            slot.fadeRemaining?activity(slot.secondary):0.),0.,1.));
+    }
     Band band(int index) const noexcept {
         return valid(index) ? slots_[static_cast<size_t>(index)].requested : Band{};
     }
@@ -227,11 +238,13 @@ public:
     }
     // The actual steady-state 2x2 matrix includes crossfeed from M/S.
     // A graph showing only stereo-routed bands would conceal active filters.
-    StereoMatrix matrixResponse(double frequency) const noexcept {
+    StereoMatrix matrixResponse(double frequency,
+        const std::array<float,kMaxBands>* dynamicActivity=nullptr) const noexcept {
         StereoMatrix total;
         if (!std::isfinite(frequency) || frequency<=0.0 || frequency>=sampleRate_*0.5)
             return total;
-        for (const auto& slot : slots_) {
+        for(int slotIndex=0;slotIndex<kMaxBands;++slotIndex) {
+            const auto& slot=slots_[static_cast<size_t>(slotIndex)];
             const Band b=slot.requested;
             if (!b.enabled) continue;
             std::complex<double> h{1.0,0.0};
@@ -243,6 +256,15 @@ public:
                 const auto numerator=c.b0+c.b1*z+c.b2*z2;
                 const auto denominator=1.0+c.a1*z+c.a2*z2;
                 h*=numerator/denominator;
+            }
+            if(dynamicActivity!=nullptr && std::abs(b.dynamicRangeDb)>0.0001 &&
+               (b.type==Type::Bell||b.type==Type::LowShelf||b.type==Type::HighShelf)) {
+                const double wet=std::clamp(double((*dynamicActivity)[static_cast<size_t>(slotIndex)]),0.,1.);
+                if(wet>0.0001) {
+                    const auto c=coefficients(b.type,b.frequency,b.dynamicRangeDb,b.q,sampleRate_);
+                    const auto dynH=(c.b0+c.b1*z+c.b2*z2)/(1.0+c.a1*z+c.a2*z2);
+                    h*=1.0+wet*(dynH-1.0);
+                }
             }
             StereoMatrix f;
             const auto one=std::complex<double>(1.0,0.0);
@@ -291,6 +313,7 @@ private:
         Coeff detector{}, dynamicFilter{};
         std::array<State,2> detectorState{}, dynamicState{};
         std::array<double,2> envelope{};
+        std::array<double,2> activity{};
         double thresholdLinear=0.0630957;
         double attack=0.,release=0.;
         bool dynamicEnabled=false;
@@ -309,7 +332,11 @@ private:
     static bool sameTopology(const Band& a,const Band& b) noexcept {
         return a.enabled==b.enabled && a.type==b.type
             && a.route==b.route && stageCountFor(a)==stageCountFor(b)
-            && a.dynamicRangeDb==b.dynamicRangeDb && a.thresholdDb==b.thresholdDb;
+            && a.dynamicRangeDb==b.dynamicRangeDb && a.thresholdDb==b.thresholdDb
+            // A dynamic detector MUST follow band frequency/Q automation.
+            // Force the existing click-free dual-path topology crossfade.
+            && (std::abs(a.dynamicRangeDb)<0.0001 ||
+                (a.frequency==b.frequency && a.q==b.q));
     }
     Path makePath(const Band& b) const noexcept {
         Path p;
@@ -383,6 +410,7 @@ private:
         const double threshold=std::max(p.thresholdLinear,1.e-5);
         // Soft onset: starts 6dB below threshold, reaches full at +6dB.
         const double wet=std::clamp((rms/threshold-0.5)/1.5,0.,1.);
+        p.activity[k]=wet;
         const double filtered=runBiquad(p.dynamicFilter,p.dynamicState[k],post);
         return post+(filtered-post)*wet;
     }

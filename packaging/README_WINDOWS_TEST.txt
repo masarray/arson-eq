@@ -35,3 +35,10 @@ M3 real preset and dynamic test:
 4) Set unique bands; choose SAVE destination USER 01, SAVE. Close VST3 and Standalone, reopen and select USER 01: state must return.
 5) Confirm no flicker/reflow; group move, preset recall, 100%/150% DPI; profile CPU with 24 active dynamic bands.
 Note: factory names/presets are original examples; auto threshold, phase variants, EQ Match and Spectrum Grab are not present.
+
+M3.1 comparison tests:
+- Open Native VST3 and Standalone. Click FILTER TYPE and inspect popup: dark background/legible light text (no Windows white menu). Click preset title: dark picker without down-arrow glyph.
+- Select dynamic Bell: static Gain 0dB, Dynamic Range -8dB, Threshold -40dBFS, signal 1kHz at -12dBFS. Look for actual movable gold response curve, purple difference shading, separate dot dynamic indicator, and live negative gain value/percentage.
+- Silence must release activity; changing band from 1kHz to 5kHz must also retune the detector. With Analyzer OFF, dynamic curve still responds.
+- Open MORE: card <=484x142, nodes remain draggable without graph resizing, popup is compact.
+- Save a User preset and reload after restarting both EXE and host. Test 100%/150% scaling and CPU at 24 dynamic bands. Log release/audio behavior for issue #4.

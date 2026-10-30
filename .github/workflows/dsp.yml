@@ -39,12 +39,12 @@ jobs:
             exit 0
           fi
           mkdir -p visual-qa
-          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=1200 --window-size=900,535 --screenshot="$PWD/visual-qa/ArSonEQ-M3-900x535.png" "file://$PWD/WebUI/visual-qa.generated.html"
-          test -s visual-qa/ArSonEQ-M3-900x535.png
+          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=1200 --window-size=900,535 --screenshot="$PWD/visual-qa/ArSonEQ-M3-1-900x535.png" "file://$PWD/WebUI/visual-qa.generated.html"
+          test -s visual-qa/ArSonEQ-M3-1-900x535.png
       - name: Publish actual browser rendering for UI review
         uses: actions/upload-artifact@v4
         with:
-          name: ArSonEQ-M3-GUI-Visual-QA
-          path: visual-qa/ArSonEQ-M3-900x535.png
+          name: ArSonEQ-M3-1-GUI-Visual-QA
+          path: visual-qa/ArSonEQ-M3-1-900x535.png
           if-no-files-found: warn
           retention-days: 7

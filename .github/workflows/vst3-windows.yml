@@ -51,7 +51,7 @@ jobs:
           if ($exe.Length -lt 100000) { throw "Unexpectedly small Standalone EXE" }
           $dll = Get-ChildItem $vst -Recurse -File -Filter "*.vst3" | Select-Object -First 1
           if ($null -eq $dll -or $dll.Length -lt 100000) { throw "Missing compiled VST3 module" }
-          $out = "dist/ArSonEQ-M3-Windows-x64"
+          $out = "dist/ArSonEQ-M3-1-Windows-x64"
           New-Item -ItemType Directory -Force "$out/VST3","$out/Standalone" | Out-Null
           Copy-Item -Path $vst -Destination "$out/VST3/" -Recurse -Force
           Copy-Item -Path $exe.FullName -Destination "$out/Standalone/ArSonEQ.exe" -Force
@@ -70,7 +70,7 @@ jobs:
       - name: Upload combined VST3 + Standalone test package
         uses: actions/upload-artifact@v4
         with:
-          name: ArSonEQ-M3-Windows-x64-VST3-Standalone-TEST
-          path: dist/ArSonEQ-M3-Windows-x64/
+          name: ArSonEQ-M3-1-Windows-x64-VST3-Standalone-TEST
+          path: dist/ArSonEQ-M3-1-Windows-x64/
           if-no-files-found: error
           retention-days: 14

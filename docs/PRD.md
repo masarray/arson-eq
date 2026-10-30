@@ -114,3 +114,7 @@ On 900×535, selecting/deselecting or editing a band and toggling MORE **must no
  
 ## M3 feature acceptance
 Real native presets replacing fake 24-band status in header. Each of eight factory recipes loads distinct EQ settings (including a functional dynamic de-esser), and eight User slots save/reload after VST3/Standalone restart. Manual threshold and ±12dB dynamic range for bell/shelves run through C++ on the audio thread; zero dynamicRange must preserve baseline sound/latency. Three new filter shapes (band-pass and two tilts) are fully implemented in the C++ DSP and accessible via native host-choice and obvious GUI chips. All legacy APVTS names and type indices are preserved. Verify 48/96k audio, host automation, session restore, and preset portability. NOT a complete Pro-Q3 clone.
+
+
+### M3.1 interaction / audio acceptance gate
+Native Dynamic EQ Bell/Shelf must update on real audio events and UI must show the instantaneous **calculated** transfer line without triggering extra work in processBlock. Off/silent bands must cease motion; changing dynamic frequency/Q must also update detector coefficients. Type picker dropdown must be dark on Windows, not white-on-white, with keyboard-accessible controls. Preset display shows selected text without a downward chevron. Floating advanced inspector size <=484×142 at 900×535 and graph canvas dimensions constant across expansion. Actual VSTHost/ArSonMix comparison to Pro-Q 3 & iZotope Neutron requires live audio and CPU/DPI tests; no feature parity claims before M4/M5.

@@ -23,6 +23,7 @@ const noteFor=hz=>{if(!isFiniteNumber(hz)||hz<=0)return "—";const midi=Math.ro
 const backend=window.__JUCE__?.backend;
 let bands=Array.from({length:MAX},(_,i)=>({id:i,enabled:false,type:0,route:0,freq:1000,gain:0,q:1,slope:0,dynRange:0,dynThreshold:-24}));
 let presetNames=[],activePreset=-1,presetBusy=false;
+let dynamicState={active:false,l:[],r:[],activity:Array(24).fill(0),gainDb:Array(24).fill(0)};
 let curves={l:[],r:[],cross:[],band:[]},spec={pre:[],post:[],range:90,peakL:0,peakR:0,preVisible:true,postVisible:true},samplerate=48000;
 let selected=-1,hovered=-1,showSpectrum=true,dragging=null,pendingDrag=null,lastValidPick=null;
 const selection=new Set(),history=[],redoHistory=[];
@@ -76,8 +77,8 @@ const setParam=(id,field,value,gesture=true)=>{
 const placeInspector=()=>{
   const card=$("inspector");
   if(card.hidden||selected<0)return;
-  const height=card.classList.contains("expanded")?Math.min(226,h-40):70;
-  const width=Math.min(630,Math.max(250,plotWidth(w)-28));
+  const height=card.classList.contains("expanded")?Math.min(142,h-40):70;
+  const width=Math.min(484,Math.max(270,plotWidth(w)-28));
   const b=bands[selected],x=hzX(b.freq,w),y=dbY(isCut(b.type)?0:b.gain,h);
   let left=clamp(x-width*.5,12,Math.max(12,plotWidth(w)-width-12));
   let top=h-height-13;
@@ -154,6 +155,7 @@ const renderInspector=()=>{
   $("enableBtn").textContent=b.enabled?"● ON":"○ OFF";
   $("enableBtn").classList.toggle("off",!b.enabled);
   $("typeSelect").value=String(b.type);
+  $("typeButton").textContent=TYPES[b.type]||"Bell";
   $("slopeSelect").value=String(b.slope);
   const setValue=(id,v)=>{const input=$(id);if(document.activeElement!==input)input.value=String(v);};
   setValue("freqInput",Math.round(b.freq*10)/10);
@@ -171,7 +173,7 @@ const renderInspector=()=>{
   $("dynThresholdInput").disabled=!dynamicOK;
   setValue("dynRangeInput",Math.round((b.dynRange||0)*10)/10);
   setValue("dynThresholdInput",Math.round((b.dynThreshold??-24)*10)/10);
-  $("dynStatus").textContent=!dynamicOK?"BELL / SHELF ONLY":Math.abs(b.dynRange||0)>0.01?"ACTIVE":"OFF";
+  updateDynamicMeter();
   const knobAngle=(v,min,max,log=false)=>{
     const t=log?(Math.log(v/min)/Math.log(max/min)):(v-min)/(max-min);
     return (-140+280*clamp(t,0,1)).toFixed(1)+"deg";
@@ -182,6 +184,16 @@ const renderInspector=()=>{
   $("routeGroup").querySelectorAll("button").forEach(btn=>
     btn.classList.toggle("active",Number(btn.dataset.route)===b.route));
   // Inspector is a fixed-geometry compositor overlay, not a flex child.
+};
+const updateDynamicMeter=()=>{
+  const b=selected>=0?bands[selected]:null;
+  if(!b)return;
+  const eligible=(b.type===0||b.type===1||b.type===2)&&Math.abs(b.dynRange)>0.01;
+  const gain=eligible?(dynamicState.gainDb?.[selected]||0):0;
+  const activity=eligible?(dynamicState.activity?.[selected]||0):0;
+  $("dynStatus").textContent=eligible?(gain>0?"+":"")+gain.toFixed(1)+" dB":"OFF";
+  $("dynStatus").classList.toggle("active",eligible&&activity>0.015);
+  $("dynMeterFill").style.width=(100*clamp(activity,0,1)).toFixed(1)+"%";
 };
 const mapLocal=e=>{const r=canvas.getBoundingClientRect();return{x:clamp(e.clientX-r.left,0,plotWidth(r.width)),y:clamp(e.clientY-r.top,0,r.height)};};
 // Canvas renderer: only native DSP response data are graphed. No JS biquads.
@@ -196,8 +208,10 @@ const responsePath=arr=>{
   return true;
 };
 const drawResponse=()=>{
-  const arr=curves.l;
-  if(!arr?.length||arr.length<2)return;
+  const staticCurve=curves.l;
+  if(!staticCurve?.length||staticCurve.length<2)return;
+  const live=dynamicState.active && dynamicState.l?.length===staticCurve.length;
+  const arr=live?dynamicState.l:staticCurve;
   const baseline=h*.5,pw=plotWidth(w);
   // Boost and attenuation each get an independently clipped fill.
   // The underlying music spectrum remains visible through both layers.
@@ -222,15 +236,31 @@ const drawResponse=()=>{
     ctx.restore();
   };
   fillHalf(true);fillHalf(false);
-  ctx.lineWidth=2.1;ctx.strokeStyle="#f0cc6b";ctx.lineJoin="round";
+  if(live){
+    // Static reference is deliberately subdued; live effective IIR response
+    // comes from native DSP activity (no fake sound-reactive animation).
+    if(responsePath(staticCurve)){
+      ctx.strokeStyle="#c2a4788f";ctx.lineWidth=1.05;ctx.stroke();
+    }
+    const pw=plotWidth(w);
+    ctx.beginPath();
+    arr.forEach((v,i)=>{const x=i*pw/(arr.length-1),y=dbY(v,h);
+      if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+    for(let i=staticCurve.length-1;i>=0;--i){
+      ctx.lineTo(i*pw/(staticCurve.length-1),dbY(staticCurve[i],h));
+    }
+    ctx.closePath();ctx.fillStyle="rgba(161,90,202,.27)";ctx.fill();
+  }
+  ctx.lineWidth=2.1;ctx.strokeStyle=live?"#f4d57d":"#f0cc6b";ctx.lineJoin="round";
   ctx.shadowBlur=3;ctx.shadowColor="#ecb84f69";
   if(responsePath(arr))ctx.stroke();
   ctx.shadowBlur=0;
-  const differ=curves.l?.length===curves.r?.length &&
-      curves.l?.some((v,i)=>Math.abs(v-curves.r[i])>.15);
+  const rightCurve=live?dynamicState.r:curves.r;
+  const differ=arr?.length===rightCurve?.length &&
+    arr.some((v,i)=>Math.abs(v-rightCurve[i])>.15);
   if(differ){
     ctx.strokeStyle="#75d7d7";ctx.lineWidth=1.2;
-    if(responsePath(curves.r))ctx.stroke();
+    if(responsePath(rightCurve))ctx.stroke();
   }
 };
 const drawSelectedBand=()=>{
@@ -336,8 +366,20 @@ const draw=()=>{
   for(let i=0;i<MAX;++i){
     const b=bands[i];if(!b.enabled)continue;
     const x=hzX(b.freq,w),y=dbY(isCut(b.type)?0:b.gain,h);
+    const wet=dynamicState.active?(dynamicState.activity?.[i]||0):0;
+    const dynamicDelta=(b.type===0||b.type===1||b.type===2)&&Math.abs(b.dynRange)>0.01?
+      (dynamicState.gainDb?.[i]||0):0;
     const focus=selection.has(i)||hovered===i;
     ctx.save();
+    // Animated dynamic marker is separate from the STATIC draggable handle,
+    // so clicking it never moves the band or changes graph coordinates.
+    if(Math.abs(dynamicDelta)>0.08){
+      const activeY=dbY(b.gain+dynamicDelta,h);
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,activeY);
+      ctx.strokeStyle=col(i);ctx.lineWidth=2.0;ctx.globalAlpha=.8;ctx.stroke();
+      ctx.beginPath();ctx.arc(x,activeY,3.3+wet*1.4,0,Math.PI*2);
+      ctx.fillStyle="#f8d77e";ctx.fill();ctx.globalAlpha=1;
+    }
     ctx.shadowBlur=focus?9:3;ctx.shadowColor=col(i);
     ctx.beginPath();ctx.arc(x,y,focus?6.2:5.4,0,Math.PI*2);
     ctx.fillStyle=col(i);ctx.fill();
@@ -363,6 +405,36 @@ const resize=()=>{
 };
 new ResizeObserver(resize).observe(wrap);
 window.addEventListener("resize",resize);
+const updatePresetMenu=()=>{
+  const menu=$("presetMenu");
+  if(!menu||menu.children.length===presetNames.length+1){
+    if(menu)for(let i=0;i<menu.children.length;++i)
+      menu.children[i].classList.toggle("selected",Number(menu.children[i].dataset.index)===activePreset);
+    return;
+  }
+  menu.replaceChildren();
+  const all=["Custom / Init",...presetNames];
+  all.forEach((name,pos)=>{
+    const index=pos-1,button=document.createElement("button");
+    button.type="button";button.dataset.index=String(index);
+    button.textContent=name;
+    button.classList.toggle("selected",index===activePreset);
+    button.onclick=()=>{
+      hidePresetMenu();
+      if(index>=0)presets.load(index);
+    };
+    menu.appendChild(button);
+  });
+};
+const hidePresetMenu=()=>{
+  $("presetMenu").hidden=true;
+  $("presetButton").setAttribute("aria-expanded","false");
+};
+const hideTypeMenu=()=>{
+  $("typeMenu").hidden=true;
+  $("typeButton").setAttribute("aria-expanded","false");
+};
+const hideExtraMenus=()=>{hidePresetMenu();hideTypeMenu();};
 function applyHostState(data){
   if(!data||!Array.isArray(data.bands)||data.bands.length!==MAX)return;
   connected=true;samplerate=isFiniteNumber(data.rate)?data.rate:samplerate;
@@ -377,6 +449,8 @@ function applyHostState(data){
     if(bands[id]){bands[id].freq=v.freq;bands[id].gain=v.gain;}
   }
   if(data.curve)curves=data.curve;
+  // Invalidates stale live response while C++ detector/filter topology changes.
+  dynamicState={...dynamicState,active:false,l:[],r:[]};
   // Match Pro-EQ style 12 dB default range, but expand if actual host gain
   // exceeds 12 dB so handles/response are never silently clipped.
   const peak=Math.max(0,...bands.filter(b=>b.enabled).map(b=>Math.abs(b.gain)),
@@ -399,7 +473,18 @@ function applyHostState(data){
   }
   activePreset=Number.isInteger(data.presetIndex)?data.presetIndex:-1;
   $("presetSelect").value=String(activePreset);
+  $("presetButton").textContent=activePreset>=0?(presetNames[activePreset]||"Custom / Init"):"Custom / Init";
+  updatePresetMenu();
   renderInspector();renderRail();if(!dragging)placeInspector();changed();
+}
+function applyDynamics(data){
+  if(!data||!Array.isArray(data.activity)||data.activity.length!==MAX)return;
+  if(data.active && (!Array.isArray(data.l)||!Array.isArray(data.r)))return;
+  dynamicState={active:!!data.active,
+    l: data.active?data.l:[],r:data.active?data.r:[],
+    activity:data.activity.map(v=>clamp(Number(v)||0,0,1)),
+    gainDb:Array.isArray(data.gainDb)?data.gainDb.map(v=>Number(v)||0):Array(MAX).fill(0)};
+  updateDynamicMeter();changed();
 }
 function applySpectrum(data){
   if(!data||!Array.isArray(data.pre)||!Array.isArray(data.post))return;
@@ -408,6 +493,7 @@ function applySpectrum(data){
 if(backend?.addEventListener){
   backend.addEventListener("eq-state",applyHostState);
   backend.addEventListener("eq-spectrum",applySpectrum);
+  backend.addEventListener("eq-dynamics",applyDynamics);
   emit({kind:"ready"});
 }else{
   $("bridgeStatus").textContent="WEB PREVIEW MODE — NO AUDIO ENGINE";
@@ -420,7 +506,7 @@ canvas.addEventListener("contextmenu",e=>{
   const p=mapLocal(e),id=bandHit(p.x,p.y);
   if(id>=0&&!selection.has(id))select(id);
   const menu=$("bandContextMenu");
-  const rect={width:166,height:150};
+  const rect={width:184,height:185};
   menu.style.left=clamp(p.x,8,Math.max(8,plotWidth(w)-rect.width-8))+"px";
   menu.style.top=clamp(p.y,28,Math.max(28,h-rect.height-8))+"px";
   menu.dataset.x=String(p.x);menu.dataset.y=String(p.y);
@@ -435,6 +521,14 @@ $("bandContextMenu").addEventListener("click",e=>{
   if(!action)return;
   const menu=$("bandContextMenu");
   if(action==="edit"&&selected>=0){renderInspector();placeInspector();}
+  else if(action==="dynamic"&&selected>=0){
+    const b=bands[selected];
+    if(b.type===0||b.type===1||b.type===2){
+      setParam(selected,"dynRange",Math.abs(b.dynRange)>0.01?0:-6);
+      $("inspector").classList.add("expanded");
+      $("advancedBtn").textContent="LESS ▴";placeInspector();
+    }
+  }
   else if(action==="toggle"&&selected>=0){
     beginEdit();
     const entries=[...selection].map(id=>({id,field:"enabled",value:bands[id].enabled?0:1}));
@@ -451,7 +545,7 @@ $("bandContextMenu").addEventListener("click",e=>{
   hideContext();
 });
 canvas.addEventListener("pointerdown",e=>{
-  hideContext();
+  hideContext();hideExtraMenus();
   if(e.button!==0)return;
   const p=mapLocal(e),id=bandHit(p.x,p.y);
   if(id<0){select(-1);return;}
@@ -557,6 +651,33 @@ $("routeGroup").addEventListener("click",e=>{
   const btn=e.target.closest("[data-route]");
   if(selected>=0&&btn)setParam(selected,"route",Number(btn.dataset.route));
 });
+// A dark, original app-owned popup avoids WebView2's white native <select> menu.
+const typeMenu=$("typeMenu");
+TYPES.forEach((name,type)=>{
+  const button=document.createElement("button");
+  button.type="button";button.dataset.type=String(type);
+  button.textContent=name;button.title=name;
+  button.onclick=()=>{
+    hideTypeMenu();
+    if(selected>=0)setParam(selected,"type",type);
+  };
+  typeMenu.appendChild(button);
+});
+$("typeButton").onclick=()=>{
+  hidePresetMenu();
+  const isOpen=$("typeMenu").hidden;
+  $("typeMenu").hidden=!isOpen;
+  $("typeButton").setAttribute("aria-expanded",String(isOpen));
+  if(isOpen)typeMenu.querySelectorAll("button").forEach(btn=>
+    btn.classList.toggle("selected",selected>=0&&Number(btn.dataset.type)===bands[selected].type));
+};
+$("presetButton").onclick=()=>{
+  hideTypeMenu();
+  const isOpen=$("presetMenu").hidden;
+  $("presetMenu").hidden=!isOpen;
+  $("presetButton").setAttribute("aria-expanded",String(isOpen));
+  if(isOpen)updatePresetMenu();
+};
 // M2.4 analyzer controls are only editor telemetry; no host audio parameters altered.
 const analyzerFields=[["fftSelect","fft"],["speedSelect","speed"],["tiltSelect","tilt"],["rangeSelect","range"]];
 const emitSetting=(field,value)=>emit({kind:"analyzerSettings",field,value});
@@ -607,7 +728,7 @@ $("shapePicker").addEventListener("click",e=>{
   const button=e.target.closest("[data-shape]");
   if(selected>=0&&button)setParam(selected,"type",Number(button.dataset.shape));
 });
-$("advancedBtn").onclick=()=>{
+$("advancedBtn").onclick=()=>{hideTypeMenu();
   const expanded=$("inspector").classList.toggle("expanded");
   $("advancedBtn").textContent=expanded?"LESS ▴":"MORE ▾";
   $("advancedBtn").setAttribute("aria-expanded",String(expanded));
@@ -671,7 +792,7 @@ window.addEventListener("keydown",e=>{
     selected=selection.size?[...selection].at(-1):-1;
     emit({kind:"select",id:selected});renderInspector();renderRail();placeInspector();changed();return;
   }
-  if(key==="escape"){hideContext();select(-1);return;}
+  if(key==="escape"){hideContext();hideExtraMenus();select(-1);return;}
   if((key==="delete"||key==="backspace")&&selected>=0){e.preventDefault();removeSelected();}
 });
 resize();renderInspector();renderRail();refreshUndo();changed();

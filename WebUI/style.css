@@ -245,3 +245,47 @@ button:hover:not(:disabled){border-color:#91a4b5}
  border:1px solid #516d7c;border-radius:3px;padding:0 3px;text-align:center}
 #dynStatus{font-size:8px;color:#85e4b6;margin-left:auto}
 .inspector.expanded .inspector-bottom{padding-top:7px}
+
+/* M3.1 responsive instrument UI: dark menus rendered by our own DOM, not
+   platform-native select popups (Windows white theme cannot bleed through). */
+.preset-center{position:relative;overflow:visible;max-width:337px;flex:1 1 260px}
+.preset-picker-button{flex:1 1 auto;min-width:65px;height:22px;border:0;
+ background:transparent;color:#e7eaf0;text-align:center;font-weight:700;
+ font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ letter-spacing:.04em}
+.preset-picker-button:hover{background:#2e4959}
+.dark-menu{position:absolute;z-index:90;padding:6px;border:1px solid #596a7e;
+ border-radius:5px;background:#1b2937;color:#e4eef8;
+ box-shadow:0 14px 30px #000d;max-height:300px;overflow-y:auto;scrollbar-color:#496478 #182736}
+.dark-menu button{display:block;width:100%;background:transparent;
+ border:1px solid transparent;border-radius:3px;padding:7px 9px;
+ min-height:28px;white-space:nowrap;text-align:left;
+ font-size:10px;font-weight:600;color:#cbdce9}
+.dark-menu button:hover,.dark-menu button.selected{background:#345b70;color:#fff;
+ border-color:#6b9aad}
+.preset-options{top:31px;left:16px;width:230px;max-height:305px}
+.inspector{width:min(484px,calc(100% - 26px));height:70px}
+.inspector.expanded{height:142px}
+@media(max-height:510px){.inspector.expanded{height:142px}}
+.parameter.shape{position:relative}
+.type-picker-button{display:block;margin-top:4px;height:25px;width:100%;
+ border:1px solid #5b6d7c;border-radius:3px;background:#1b2d3a;
+ color:#edf4fa;text-align:left;padding:0 9px;font-size:10px;font-weight:700}
+.type-picker-button:hover{background:#36586a;border-color:#9bd9ea}
+.type-options{z-index:100;position:absolute;bottom:32px;left:-4px;
+ width:250px;max-height:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.type-options button{text-align:center;font-size:9px;white-space:normal;
+ padding:5px 2px;line-height:12px;min-height:34px}
+.inspector.expanded .shape-picker{display:none!important}
+.inspector.expanded .dyn-controls{display:flex;min-height:35px;height:35px;gap:7px;
+ padding:4px 5px;margin-top:6px}
+.inspector.expanded .inspector-bottom{padding-top:6px}
+.dyn-controls b{font-size:9px}
+.dyn-controls label{font-size:8px}
+#dynStatus{min-width:40px;text-align:right;font-size:10px;color:#90a9b7;
+ font-variant-numeric:tabular-nums}
+#dynStatus.active{color:#e7b5f4}
+.dyn-meter{width:38px;min-width:38px;height:6px;background:#243543;
+ border-radius:4px;border:1px solid #486071;overflow:hidden}
+.dyn-meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4eb8d6,#bd76e6);
+ border-radius:4px}
