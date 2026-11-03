@@ -1,0 +1,83 @@
+cmake_minimum_required(VERSION 3.24)
+project(ArSonEQ VERSION 0.1.0 LANGUAGES C CXX)
+
+option(ARSONEQ_BUILD_PLUGIN "Build JUCE VST3 plugin and native Standalone application" OFF)
+option(ARSONEQ_BUILD_TESTS "Build standalone DSP unit tests" ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+add_library(arson_eq_dsp INTERFACE)
+target_include_directories(arson_eq_dsp INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/Source")
+target_compile_features(arson_eq_dsp INTERFACE cxx_std_17)
+
+if(ARSONEQ_BUILD_TESTS)
+    enable_testing()
+    add_executable(arson_eq_core_tests tests/eq_core_tests.cpp)
+    target_link_libraries(arson_eq_core_tests PRIVATE arson_eq_dsp)
+    if(MSVC)
+        target_compile_options(arson_eq_core_tests PRIVATE /W4)
+    else()
+        target_compile_options(arson_eq_core_tests PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    add_test(NAME arson_eq_core COMMAND arson_eq_core_tests)
+    add_executable(arson_eq_rt_tests tests/eq_rt_tests.cpp)
+    target_link_libraries(arson_eq_rt_tests PRIVATE arson_eq_dsp)
+    add_test(NAME arson_eq_rt COMMAND arson_eq_rt_tests)
+    find_package(Threads REQUIRED)
+    add_executable(arson_eq_analyzer_tests tests/eq_analyzer_tests.cpp)
+    target_link_libraries(arson_eq_analyzer_tests PRIVATE arson_eq_dsp Threads::Threads)
+    add_test(NAME arson_eq_analyzer COMMAND arson_eq_analyzer_tests)
+endif()
+
+if(ARSONEQ_BUILD_PLUGIN)
+    # Local JUCE checkout for offline builds; otherwise fetch a pinned release.
+    if(DEFINED JUCE_SOURCE_DIR AND EXISTS "${JUCE_SOURCE_DIR}/CMakeLists.txt")
+        add_subdirectory("${JUCE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/juce")
+    else()
+        include(FetchContent)
+        FetchContent_Declare(juce
+            GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+            GIT_TAG 9.0.4
+            GIT_SHALLOW TRUE)
+        FetchContent_MakeAvailable(juce)
+    endif()
+
+    juce_add_plugin(ArSonEQ
+        COMPANY_NAME "ArSon Audio"
+        BUNDLE_ID "com.arsonaudio.arsoneq"
+        PLUGIN_MANUFACTURER_CODE ArsN
+        PLUGIN_CODE ArEQ
+        # One shared processor/editor implementation for both deliverables.
+        # Standalone is a native Windows executable, NOT a web page.
+        FORMATS VST3 Standalone
+        VST3_CATEGORIES Fx EQ
+        IS_SYNTH FALSE
+        NEEDS_MIDI_INPUT FALSE
+        NEEDS_MIDI_OUTPUT FALSE
+        IS_MIDI_EFFECT FALSE
+        COPY_PLUGIN_AFTER_BUILD FALSE
+        PRODUCT_NAME "ArSonEQ"
+        NEEDS_WEBVIEW2 TRUE)
+    target_sources(ArSonEQ PRIVATE
+        Source/PluginProcessor.cpp
+        Source/PluginEditor.cpp)
+    if(WIN32)
+        # Browser UI is plain static HTML/CSS/JS embedded in BOTH formats.
+        # No Node/React/vite/npm at runtime and no local web server.
+        juce_add_binary_data(ArSonEQWebAssets SOURCES
+            WebUI/index.html WebUI/style.css WebUI/app.js)
+        target_sources(ArSonEQ PRIVATE Source/WebEditor.cpp)
+        target_link_libraries(ArSonEQ PRIVATE ArSonEQWebAssets)
+    endif()
+    target_link_libraries(ArSonEQ PRIVATE arson_eq_dsp
+        juce::juce_audio_utils juce::juce_gui_extra juce::juce_dsp
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags
+        juce::juce_recommended_lto_flags)
+    target_compile_definitions(ArSonEQ PRIVATE
+        JUCE_WEB_BROWSER=1 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
+    if(WIN32)
+        target_compile_definitions(ArSonEQ PRIVATE JUCE_USE_WIN_WEBVIEW2=1)
+    endif()
+endif()

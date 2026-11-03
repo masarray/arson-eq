@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<title>ArSonEQ</title><link rel="stylesheet" href="style.css"></head>
+<body><div id="app">
+<header class="top">
+  <div class="brand"><span class="brand-glyph">A<span>◢</span></span><div class="brand-name">ArSon<span>EQ</span></div><span class="brand-separator"></span><span class="brand-caption">PARAMETRIC EQ</span></div>
+  <div class="preset-center" aria-label="Real EQ presets">
+  <button id="prevPreset" class="preset-nav" type="button" title="Previous preset">‹</button>
+  <select id="presetSelect" hidden aria-hidden="true"><option value="-1">Custom / Init</option></select>
+  <button id="presetButton" class="preset-picker-button" type="button"
+    aria-label="Browse EQ presets" aria-expanded="false">Custom / Init</button>
+  <div id="presetMenu" class="dark-menu preset-options" role="menu" hidden></div>
+  <button id="nextPreset" class="preset-nav" type="button" title="Next preset">›</button>
+  <select id="saveSlot" aria-label="Destination user preset slot" title="Save current EQ to this user slot">
+    <option value="8">USER 01</option><option value="9">USER 02</option>
+    <option value="10">USER 03</option><option value="11">USER 04</option>
+    <option value="12">USER 05</option><option value="13">USER 06</option>
+    <option value="14">USER 07</option><option value="15">USER 08</option>
+  </select><button id="savePreset" class="preset-save" type="button" title="Save current EQ to chosen User slot">SAVE</button>
+</div>
+  <div class="top-actions"><button id="undoBtn" class="bar-button history-button" type="button" title="Undo EQ edit (Ctrl+Z)" disabled>↶</button><button id="redoBtn" class="bar-button history-button" type="button" title="Redo EQ edit (Ctrl+Y)" disabled>↷</button><button id="bandsBtn" class="bar-button" type="button" title="Active band list">BANDS <b id="bandCount">0 / 24</b></button><button id="viewBtn" class="bar-button active" type="button" title="Toggle live spectrum">ANALYZER <span id="spectrumStatus">ON</span></button><button id="analyzerMenuBtn" class="bar-button" type="button" title="FFT resolution, smoothing, display tilt and freeze">FFT ⚙</button><button id="helpBtn" class="help-button" type="button" title="Mouse and keyboard controls">?</button></div>
+</header>
+<main class="workspace">
+  <div class="graph-wrap" id="graphWrap">
+    <canvas id="eqCanvas" aria-label="Interactive parametric EQ graph"></canvas>
+    <div class="graph-overlay" id="graphTooltip" hidden></div>
+    <div class="graph-hud">
+      <span class="graph-mode">PARAMETRIC EQ <i class="graph-cyan"></i></span>
+      <span class="graph-info" id="hoverReadout">Double-click to add a band</span>
+    </div>
+    <div class="axis-hint">dB</div>
+    <div class="band-list" id="bandList" hidden><div class="popup-head">ACTIVE BANDS <span>CLICK TO SELECT</span></div><div id="bandRail" class="band-rail"></div></div>
+    <div id="analyzerMenu" class="analyzer-menu" hidden>
+      <div class="analyzer-title">SPECTRUM ANALYZER <span>Native FFT · display only</span></div>
+      <div class="analyzer-options">
+        <label>FFT RESOLUTION<select id="fftSelect"><option value="10">1024 · FAST</option><option value="11">2048</option><option value="12" selected>4096 · HIGH</option><option value="13">8192 · MAX</option></select></label>
+        <label>SPEED<select id="speedSelect"><option value="0">FAST</option><option value="1" selected>MEDIUM</option><option value="2">SLOW</option></select></label>
+        <label>DISPLAY TILT<select id="tiltSelect"><option value="0">FLAT · 0 dB/oct</option><option value="3">3 dB/oct</option><option value="4.5" selected>4.5 dB/oct</option><option value="6">6 dB/oct</option></select></label>
+        <label>LEVEL RANGE<select id="rangeSelect"><option value="60">60 dB</option><option value="90" selected>90 dB</option><option value="120">120 dB</option></select></label>
+      </div>
+      <div class="analyzer-switches">
+        <label><input type="checkbox" id="showPre" checked> INPUT</label>
+        <label><input type="checkbox" id="showPost" checked> OUTPUT</label>
+        <label><input type="checkbox" id="freezeSpectrum"> FREEZE</label>
+      </div>
+      <small>FFT/tilt changes visualization only · audio latency stays zero</small>
+    </div>
+    <div id="quickHelp" class="quick-help" hidden><b>EQ CONTROLS</b><p>Double-click: add / remove band</p><p>Ctrl + click: multiselect bands</p><p>Drag a selected group: move together</p><p>Shift + drag: precision edit</p><p>Ctrl+Z / Ctrl+Y: undo / redo</p><p>Wheel: Q / cut slope</p></div>
+    <div id="bandContextMenu" class="band-context" hidden role="menu" aria-label="EQ band context menu">
+      <button type="button" data-eq-menu="edit">EDIT BAND</button>
+      <button type="button" data-eq-menu="toggle">BYPASS / ENABLE</button>
+      <button type="button" data-eq-menu="dynamic">MAKE DYNAMIC / CLEAR</button>
+      <button type="button" data-eq-menu="remove">REMOVE SELECTED</button>
+      <button type="button" data-eq-menu="add">ADD BAND HERE</button>
+      <button type="button" data-eq-menu="all">SELECT ALL BANDS</button>
+    </div>
+    <!-- Floating EQ control card occupies no graph layout height. -->
+    <div class="inspector" id="inspector" hidden role="region" aria-label="Selected filter controls">
+      <div class="inspector-top"><div class="identity"><i id="bandDot"></i><span id="bandTitle">BAND 01</span><span id="activeLabel" class="channel-badge">BAND</span></div>
+        <div class="inspector-actions"><button id="enableBtn" type="button" title="Enable / bypass filter">ON</button><button id="advancedBtn" type="button" title="Expand advanced band controls" aria-expanded="false">MORE ▾</button><button id="removeBtn" type="button" title="Delete band">×</button><button id="closeInspector" type="button" title="Close inspector">▾</button></div>
+      </div>
+      <div id="emptyInspector" hidden></div>
+      <div id="bandInspector" class="band-inspector" hidden>
+        <div class="parameter-row">
+          <div class="parameter shape">FILTER TYPE<span class="shape-glyph" id="typeGlyph">⌒</span>
+   <button id="typeButton" class="type-picker-button" type="button" aria-label="Choose EQ filter shape"
+     aria-expanded="false">Bell</button>
+   <div id="typeMenu" class="dark-menu type-options" role="menu" hidden></div>
+   <select id="typeSelect" hidden aria-hidden="true"><option value="0">Bell</option><option value="1">Low Shelf</option><option value="2">High Shelf</option><option value="3">Low Cut</option><option value="4">High Cut</option><option value="5">Notch</option><option value="6">Band Pass</option><option value="7">Tilt Shelf</option><option value="8">Flat Tilt</option></select></div>
+          <label class="parameter">FREQUENCY<span class="knob-face freq" id="freqKnob" title="Drag vertically to adjust freq"></span><div class="number"><input id="freqInput" type="number" min="20" max="20000" step=".1"><span>Hz</span></div></label>
+          <label class="parameter">GAIN<span class="knob-face gain" id="gainKnob" title="Drag vertically to adjust gain"></span><div class="number"><input id="gainInput" type="number" min="-24" max="24" step=".1"><span>dB</span></div></label>
+          <label class="parameter q-field">Q<span class="knob-face q" id="qKnob" title="Drag vertically to adjust q"></span><div class="number"><input id="qInput" type="number" min=".1" max="24" step=".01"><span>Q</span></div></label>
+        </div>
+        <div id="shapePicker" class="shape-picker" role="group" aria-label="EQ filter shapes">
+          <button data-shape="0" title="Bell">BELL</button>
+          <button data-shape="1" title="Low Shelf">LO SH</button>
+          <button data-shape="2" title="High Shelf">HI SH</button>
+          <button data-shape="3" title="High Pass / Low Cut">HPF</button>
+          <button data-shape="4" title="Low Pass / High Cut">LPF</button>
+          <button data-shape="5" title="Notch">NOTCH</button>
+          <button data-shape="6" title="Band Pass">BPF</button>
+          <button data-shape="7" title="Tilt Shelf">TILT</button>
+          <button data-shape="8" title="Flat Tilt">FLAT</button>
+        </div>
+        <div class="dyn-controls" id="dynControls">
+          <b>DYNAMIC EQ</b>
+          <label>RANGE <input id="dynRangeInput" type="number" step=".1" min="-12" max="12" value="0"> dB</label>
+          <label>THRESHOLD <input id="dynThresholdInput" type="number" step=".1" min="-60" max="0" value="-24"> dBFS</label>
+          <span id="dynStatus">OFF</span><span id="dynMeter" class="dyn-meter" aria-label="Dynamic gain meter">
+   <i id="dynMeterFill"></i></span>
+        </div>
+        <div class="inspector-bottom">
+          <div class="channel-wrap"><span>CHANNEL</span><div class="route-group" id="routeGroup"><button type="button" data-route="0">ST</button><button type="button" data-route="1">L</button><button type="button" data-route="2">R</button><button type="button" data-route="3">MID</button><button type="button" data-route="4">SIDE</button></div></div>
+          <label class="slope-wrap" for="slopeSelect">SLOPE<select id="slopeSelect"><option value="0">12 dB</option><option value="1">24 dB</option><option value="2">36 dB</option><option value="3">48 dB</option></select></label>
+          <div class="note-info"><span>NOTE</span><b id="noteLabel">—</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer class="bottom-bar">
+  <div class="footer-left"><span class="signal-flag"><i></i> PARAMETRIC EQ</span><span class="footer-divider"></span><span id="bridgeStatus">CONNECTING</span><span class="footer-divider"></span><span id="stateInfo">24 BANDS / ZERO LATENCY</span></div>
+  <div class="footer-center"><span class="legend-mark pre"></span> PRE <span class="legend-mark post"></span> POST <span class="legend-mark curve"></span> EQ CURVE</div>
+  <div class="footer-right"><span>ZERO LATENCY</span><span class="footer-divider"></span><b>ARSON AUDIO</b></div>
+</footer>
+</div><script src="app.js" defer></script></body></html>
