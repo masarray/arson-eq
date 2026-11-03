@@ -1,0 +1,74 @@
+name: SC220 integration VST3 reproducible binary export
+on:
+  push:
+    branches: ['feat/initial-vst3-eq-architecture']
+    paths: ['.github/workflows/sc220-vst3-export.yml']
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: sc220-arsoneq-export
+  cancel-in-progress: false
+
+jobs:
+  export-reproducible-vst3:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Pin previous successful Windows CI artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_status=$(gh api repos/masarray/arson-eq/actions/runs/40983590331 --jq '.conclusion')
+          run_sha=$(gh api repos/masarray/arson-eq/actions/runs/40983590331 --jq '.head_sha')
+          [[ "$run_status" == "success" ]] || { echo "Original VST3 build was not successful"; exit 1; }
+          [[ "$run_sha" == "1f9513d75faea306e06bafd7b68119d4b8bef276" ]] || { echo "Source changed; rebuild required"; exit 1; }
+          gh run download 40983590331 --repo masarray/arson-eq --name 'ArSonEQ-M3-1-Windows-x64-VST3-Standalone-TEST' --dir from-audited-ci
+      - name: Verify actual VST3 module, package exact binary and AGPL notice
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle='from-audited-ci/VST3/ArSonEQ.vst3'
+          test -d "$bundle"
+          module=$(find "$bundle" -type f -iname '*.vst3' -print -quit)
+          test -n "$module"
+          test "$(stat -c '%s' "$module")" -gt 100000
+          mkdir -p stage
+          cp -a "$bundle" 'stage/ArSonEQ.vst3'
+          cp LICENSE 'stage/AGPL-3.0-LICENSE.txt'
+          cat > stage/PROVENANCE.txt <<EOF
+          Plugin: ArSonEQ (independent AGPL-3.0 VST3)
+          Source repository: https://github.com/masarray/arson-eq
+          Binary build commit: 1f9513d75faea306e06bafd7b68119d4b8bef276
+          Binary Windows CI run: https://github.com/masarray/arson-eq/actions/runs/40983590331
+          Artifact: ArSonEQ-M3-1-Windows-x64-VST3-Standalone-TEST
+          Windows: x64
+          SC220 Live host integration: optional separate plugin, not embedded into the host executable.
+          The SC220 Live host remains under its own terms; do not assume licence compatibility without review.
+          EOF
+          (cd stage && zip -qr ../ArSonEQ-v0.1.0-M3.1-Windows-x64-VST3.zip .)
+          sha256sum 'ArSonEQ-v0.1.0-M3.1-Windows-x64-VST3.zip' > SHA256SUMS.txt
+          test -s 'ArSonEQ-v0.1.0-M3.1-Windows-x64-VST3.zip'
+          unzip -tq 'ArSonEQ-v0.1.0-M3.1-Windows-x64-VST3.zip'
+      - name: Publish version-pinned public engineering VST3 binary without mutating stable tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view 'v0.1.0-m3.1-sc220-test' --repo 'masarray/arson-eq' >/dev/null 2>&1; then
+            echo "Immutable integration release exists; refusing to replace binaries."
+            exit 1
+          fi
+          gh release create 'v0.1.0-m3.1-sc220-test' 'ArSonEQ-v0.1.0-M3.1-Windows-x64-VST3.zip' SHA256SUMS.txt \
+            --repo 'masarray/arson-eq' --target '1f9513d75faea306e06bafd7b68119d4b8bef276' --prerelease \
+            --title 'ArSonEQ - SC220 Integration VST3 (M3.1 engineering)' \
+            --notes 'Independently licensed AGPL-3.0 Windows x64 VST3 exported from an already-passing Windows build. Includes source/run provenance, corresponding GitHub source commit, licence and checksums. Intended as an engineering test asset, not a claim of SC220+ASIO hardware approval.'
