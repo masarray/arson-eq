@@ -101,7 +101,7 @@ function renderInspector(){
   const index=state.selected,b=state.previewDraft||state.bands[index],editable=state.mode!=='offline'&&!state.pending;
   $('selectedTitle').innerHTML='';
   $('selectedTitle').append(document.createTextNode(KEY[index][1]+' '));
-  const suffix=document.createElement('span');suffix.textContent=KEY[index][0];$('selectedTitle').append(suffix);
+  const suffix=document.createElement('span');suffix.textContent=KEY[index][0].length>1?KEY[index][0]:'PEQ';$('selectedTitle').append(suffix);
   $('selectedMark').style.background=KEY[index][3];
   $('frequencyInput').value=round(b.frequencyHz,1);
   $('gainInput').value=round(b.gainDb,2);
@@ -177,6 +177,7 @@ function setSnapshot(s){
      !s.bands.every((b,i)=>validBand(b,i,s.sampleRate))||
      (s.curveDb!==null&&s.curveDb!==undefined&&(!Array.isArray(s.curveDb)||s.curveDb.length<65||s.curveDb.length>1024||!s.curveDb.every(v=>Number.isFinite(v)&&v>=-100&&v<=100))))return false;
   if(state.mode==='native'&&s.channelId===state.channelId&&s.deviceEpoch===state.deviceEpoch&&BigInt(s.revision)<BigInt(state.revision))return false;
+  if(state.mode==='native'&&s.channelId===state.channelId&&s.deviceEpoch===state.deviceEpoch&&s.revision===state.revision&&s.bands.some((b,i)=>!sameBand(b,state.bands[i])))return false;
   if(state.mode==='native'&&s.channelId===state.channelId&&BigInt(s.deviceEpoch)<BigInt(state.deviceEpoch))return false;
   const changedIdentity=state.mode!=='native'||s.channelId!==state.channelId||s.deviceEpoch!==state.deviceEpoch;
   if(changedIdentity)state.pending=null;
@@ -196,7 +197,7 @@ function ack(a){
   if(a.status!=='accepted'){
     state.pending=null;refresh();renderStatus('REJECTED / STALE · native did not apply EQ change');return true;
   }
-  if(!validUint(a.revision)||BigInt(a.revision)<BigInt(state.revision))return false;
+  if(!validUint(a.revision)||BigInt(a.revision)<=BigInt(state.revision))return false;
   p.ackRevision=a.revision;
   // Requires a fresh accepted native revision and exact requested parameters.
   // An ACK alone can never repaint desired state as though audio were updated.
@@ -226,8 +227,9 @@ function draw(){
     const y=yg(db);ctx.setLineDash(db===0?[4,4]:[]);ctx.lineWidth=db===0?1.15:.65;
     ctx.strokeStyle=db===0?'#65818d':'#29404e';ctx.beginPath();ctx.moveTo(39,y);ctx.lineTo(w-42,y);ctx.stroke();ctx.setLineDash([]);
     ctx.textAlign='right';ctx.fillStyle=db===0?'#b5c9d3':'#6f8998';ctx.fillText((db>0?'+':'')+db,31,y);
-    ctx.textAlign='left';ctx.fillText('dB',w-33,y);
+    
   });
+  ctx.textAlign='left';ctx.fillStyle='#708997';ctx.fillText('dB',w-33,32);
   // Accepted host response is not assumed if missing. Flat is displayed only
   // as the disabled baseline; the visible caption warns if native curve absent.
   const curve=state.mode==='design'?(state.previewDraft?previewResponse(draftBands(),state.sampleRate):state.curveDb):state.curveDb;
@@ -308,6 +310,7 @@ if(new URLSearchParams(location.search).has('smoke')){
   check(setSnapshot(good),'good native accepted');
   check($('channelTitle').textContent.includes('<script>'),'name text only');
   check(!setSnapshot({...good,revision:'3'}),'older snapshot rejected');
+  check(!setSnapshot({...good,bands:good.bands.map((b,i)=>i===3?{...b,enabled:true}:b)}),'revision cannot silently mutate EQ');
   check(!setSnapshot({...good,bands:[...good.bands.slice(0,8)]}),'8 bands rejected');
   check(!setSnapshot({...good,curveDb:Array(257).fill(NaN)}),'invalid curve rejected');
   const sent=[];window.__ARSON_CONSOLE_EQ_BRIDGE__={send:x=>sent.push(x)};
