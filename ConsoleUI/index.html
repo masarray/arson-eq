@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'">
+<title>ArSonMix · Channel EQ (isolated candidate)</title>
+<link rel="stylesheet" href="style.css"></head>
+<body><div class="eq-shell">
+<header class="window-title"><span class="brand">ArSonMix</span><span class="window-divider"></span><span class="window-name">CHANNEL EQ</span><span class="window-right" id="connectionLabel">NOT CONNECTED</span></header>
+<div class="eq-toolbar">
+ <div class="channel-identity"><span class="channel-led" aria-hidden="true"></span><span class="channel-name" id="channelTitle">CH 01 · VOCAL</span><span class="channel-kind">BUILT-IN / NATIVE</span></div>
+ <div class="toolbar-controls"><span class="processing-tag">MIN PHASE</span><span class="toolbar-rule"></span><span class="latency-tag">+0 SAMPLES</span><button id="flatBtn" class="metal-button" title="Disable all EQ bands" type="button">FLAT</button></div>
+</div>
+<main class="eq-main">
+ <section class="plot-area" aria-label="Parametric EQ response graph">
+  <div class="plot-glass"><canvas id="eqPlot" aria-label="Frequency response and draggable filter nodes"></canvas>
+   <div class="plot-caption"><span class="plot-dot"></span><span>CHANNEL PARAMETRIC EQ</span><span class="plot-caption-right" id="plotReadout">Drag a point to adjust · wheel changes Q</span></div>
+   <div class="plot-footnote" id="plotMode">NATIVE RESPONSE REQUIRED</div>
+  </div>
+ </section>
+ <nav class="filter-rail" aria-label="Select or enable EQ bands" id="filterRail"></nav>
+ <section class="edit-deck" aria-label="Selected filter settings">
+  <div class="edit-identity"><span id="selectedMark" class="selected-mark"></span><div><div class="edit-label">SELECTED FILTER</div><div id="selectedTitle" class="selected-title">HIGH PASS <span>HPF</span></div></div></div>
+  <div class="edit-controls"><label class="control-box"><span>FREQUENCY</span><div class="number-shell"><input id="frequencyInput" type="number" inputmode="decimal" min="20" max="20000" step="1" aria-label="Filter frequency"><small>Hz</small></div></label>
+  <label class="control-box"><span>GAIN</span><div class="number-shell"><input id="gainInput" type="number" inputmode="decimal" min="-18" max="18" step="0.1" aria-label="Gain in decibels"><small>dB</small></div></label>
+  <label class="control-box"><span>Q / WIDTH</span><div class="number-shell"><input id="qInput" type="number" inputmode="decimal" min="0.1" max="24" step="0.01" aria-label="Filter Q"></div></label>
+  <label class="control-box slope-control"><span>SLOPE</span><div class="select-shell"><select id="slopeInput" aria-label="Filter slope"><option value="12">12 dB</option><option value="24">24 dB</option><option value="48">48 dB</option></select></div></label></div>
+  <button id="bandToggle" class="power-button" type="button" aria-pressed="false" aria-label="Enable selected filter" title="Enable selected band; preserves settings"><span class="power-icon">⏻</span><span id="powerText">OFF</span></button>
+ </section>
+</main>
+<footer class="status-bar"><span class="status-dot" id="statusDot"></span><span class="status-main" id="statusText" role="status" aria-live="polite">Not connected · controls disabled</span><span class="status-spacer"></span><span>HPF · 5 PEQ · LPF</span><span class="status-sep"></span><span id="sampleRate">48 kHz</span><span class="status-sep"></span><span class="foot-brand">ArSonMix / EQ</span></footer>
+</div><script src="app.js"></script></body></html>

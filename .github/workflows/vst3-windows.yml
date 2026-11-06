@@ -35,8 +35,8 @@ jobs:
         shell: pwsh
         run: cmake -S . -B build-vst -DARSONEQ_BUILD_PLUGIN=ON -DARSONEQ_BUILD_TESTS=ON "-DJUCE_WEBVIEW2_PACKAGE_LOCATION=$env:RUNNER_TEMP/arsoneq-nuget"
       - name: Build BOTH Windows Release formats + native tests
-        run: cmake --build build-vst --config Release --target ArSonEQ_VST3 ArSonEQ_Standalone arson_eq_core_tests arson_eq_rt_tests arson_eq_analyzer_tests --parallel 2
-      - name: Run 3 native DSP suites
+        run: cmake --build build-vst --config Release --target ArSonEQ_VST3 ArSonEQ_Standalone arson_eq_core_tests arson_eq_rt_tests arson_eq_console_tests arson_eq_analyzer_tests --parallel 2
+      - name: Run 4 native DSP suites
         run: ctest --test-dir build-vst -C Release --output-on-failure
       - name: Package verified VST3 and Standalone EXE together
         shell: pwsh

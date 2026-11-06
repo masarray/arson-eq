@@ -4,6 +4,7 @@ on:
     paths:
       - "Source/DSP/**"
       - "WebUI/**"
+      - "ConsoleUI/**"
       - "tests/**"
       - "CMakeLists.txt"
       - ".github/workflows/dsp.yml"
@@ -29,6 +30,24 @@ jobs:
         run: |
           node --check WebUI/app.js
           node WebUI/smoke.test.cjs
+      - name: Console EQ syntax and native ACK/readback contract
+        run: |
+          node --check ConsoleUI/app.js
+          node --check ConsoleUI/smoke.test.cjs
+          node ConsoleUI/smoke.test.cjs
+      - name: Capture console EQ design preview 900x540 and 720x460
+        shell: bash
+        run: |
+          CHROME=$(command -v google-chrome || command -v chromium || true)
+          if [[ -z "$CHROME" ]]; then
+            echo "Chromium unavailable; no visual artifact"
+            exit 0
+          fi
+          mkdir -p visual-qa
+          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=1500 --window-size=900,540 --screenshot="$PWD/visual-qa/ArSonMix-ConsoleEQ-900x540.png" "file://$PWD/ConsoleUI/index.html?designPreview=1"
+          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=1500 --window-size=720,460 --screenshot="$PWD/visual-qa/ArSonMix-ConsoleEQ-720x460.png" "file://$PWD/ConsoleUI/index.html?designPreview=1"
+          test -s visual-qa/ArSonMix-ConsoleEQ-900x540.png
+          test -s visual-qa/ArSonMix-ConsoleEQ-720x460.png
       - name: Capture 900x535 editor visual QA (no JUCE build)
         shell: bash
         run: |
@@ -46,5 +65,13 @@ jobs:
         with:
           name: ArSonEQ-M3-1-GUI-Visual-QA
           path: visual-qa/ArSonEQ-M3-1-900x535.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload isolated Console EQ visuals
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArSonMix-Console-EQ-Design-Candidate
+          path: visual-qa/ArSonMix-ConsoleEQ-*.png
           if-no-files-found: warn
           retention-days: 7
